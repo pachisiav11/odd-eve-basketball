@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+
+# Solved value tables. Regenerate with `python build.py`.
+# index.html carries its own embedded copy, so the site needs none of these.
+*.npy
+table_b64.txt
+
+# Local run output
+sweep_out.txt
+spam_out.txt
+.claude/
