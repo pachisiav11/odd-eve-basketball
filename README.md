@@ -2,7 +2,7 @@
 
 A two-player hand-signal game, solved exactly and made playable in the browser.
 
-**[Play it here](#)** &mdash; you against the exact Nash equilibrium.
+**[Play it here](https://pachisiav11.github.io/odd-eve-basketball/)** &mdash; you against the exact Nash equilibrium.
 
 ## The game
 
