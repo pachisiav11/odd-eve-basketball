@@ -73,11 +73,7 @@ def always(n):
     return policy
 
 
-def equilibrium_policy(legal, charges):
-    raise NotImplementedError
-
-
-GAMES = 1200
+GAMES = 20000
 print("Player strategy               win rate   mean beats   best stack reached")
 for n in (5, 1, 13, 12):
     rng = random.Random(11)

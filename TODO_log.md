@@ -9,3 +9,5 @@
 - Added: 2026-09-12 16:40 | Completed: 2026-09-12 17:02 | Sweep reward functions and compare risk/reward crossover.
 - Added: 2026-09-12 16:40 | Completed: 2026-09-12 17:08 | Write up findings and a recommendation on the dunk reward formula.
 - Added: 2026-09-12 17:20 | Completed: 2026-09-12 17:23 | Build a playable HTML page against the solved equilibrium, verified in the browser.
+- Added: 2026-09-12 17:23 | Completed: 2026-09-12 17:43 | Verify the engine is unexploitable after a player reported spamming 5; confirmed no bug (exhaustive scan plus 20,000-game test).
+- Added: 2026-09-12 17:23 | Completed: 2026-09-12 17:43 | Create GitHub repo and publish index.html as a static site.
