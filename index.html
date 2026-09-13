@@ -158,6 +158,38 @@ input[type=text]::placeholder{color:#4a5562;font-weight:400}
 .lo.score{color:var(--good)} .lo.bad{color:var(--bad)} .lo.ok{color:var(--dim)} .lo.big{color:var(--warn)}
 .empty{padding:22px 16px;color:var(--dim);font-size:12.5px;text-align:center}
 
+/* ---------- saved games ---------- */
+.slots{display:flex;flex-direction:column;gap:7px}
+.slot{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;background:var(--panel2);
+  border:1px solid var(--line);border-radius:9px;padding:8px 11px}
+.slot.filled{border-color:#2f3a46}
+.sname{font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot.free .sname{color:var(--dim);font-weight:500}
+.smeta{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sact{display:flex;gap:5px;flex:none}
+.sbtn{padding:4px 9px;font-size:11px;border-radius:6px}
+.sbtn.del{color:var(--bad)}
+.frow{display:flex;gap:7px;margin-top:11px}
+.frow button{flex:1;padding:7px 0;font-size:12px}
+.smsg{font-family:var(--mono);font-size:11.5px;color:var(--good);min-height:17px;margin-top:9px}
+.smsg.bad{color:var(--bad)}
+.rec{display:flex;align-items:baseline;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.recnum{font-family:var(--mono);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.reclab{font-size:11px;color:var(--dim)}
+.reclink{margin-left:auto;display:flex;gap:11px}
+.reclink button{background:none;border:none;padding:0;font-size:11px;color:var(--dim);text-decoration:underline}
+.reclink button:hover:not(:disabled){color:var(--muted);background:none}
+.hist{margin-top:9px;max-height:120px;overflow-y:auto;font-family:var(--mono);font-size:11px}
+.hist::-webkit-scrollbar{width:9px}
+.hist::-webkit-scrollbar-thumb{background:#293240;border-radius:5px}
+.hrow{display:flex;gap:9px;align-items:baseline;padding:3px 0;border-bottom:1px solid #1a2029}
+.hrow:last-child{border-bottom:none}
+.hres{font-weight:700;flex:none}
+.hres.w{color:var(--good)} .hres.l{color:var(--bad)}
+.hdate{margin-left:auto;color:var(--dim)}
+.hnone{color:var(--dim);padding:6px 0}
+
 /* ---------- game over ---------- */
 .over{position:fixed;inset:0;background:rgba(6,8,10,.86);backdrop-filter:blur(7px);display:flex;
   align-items:center;justify-content:center;z-index:50;padding:20px}
@@ -278,6 +310,28 @@ footer code{font-family:var(--mono);color:var(--muted)}
     <div class="card">
       <div class="chd">Beat log</div>
       <div class="log" id="log"><div class="empty">No beats played yet.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="chd">Saved games</div>
+      <div class="cbd">
+        <div class="slots" id="slots"></div>
+        <div class="frow">
+          <button type="button" id="expGame">Export .json</button>
+          <button type="button" id="impGame">Import .json</button>
+        </div>
+        <input type="file" id="impFile" accept="application/json,.json" hidden>
+        <div class="smsg" id="saveMsg">&nbsp;</div>
+        <div class="rec">
+          <span class="recnum" id="recNum">0&ndash;0</span>
+          <span class="reclab" id="recLab">record vs. engine</span>
+          <span class="reclink">
+            <button type="button" id="expHist">export</button>
+            <button type="button" id="clrHist">clear</button>
+          </span>
+        </div>
+        <div class="hist" id="hist"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -408,23 +462,44 @@ function sample(mix) {
 /* ===================================================================
    Game state
    =================================================================== */
+// G is the whole game.  It holds nothing but JSON-able values, which is what
+// makes saving it a matter of stringifying it: `last` and `view` carry the
+// arena display so a reloaded game looks exactly as it did when it was saved.
 let G;
 function newGame() {
   G = {
     you: 0, eng: 0,
     holder: Math.random() < 0.5 ? "you" : "eng",
     charges: 0, beat: 0, over: false,
-    log: [], tackles: 0, yourPoints: [], engPoints: []
+    log: [], tackles: 0, yourPoints: [], engPoints: [],
+    last: null,
+    view: { kind: "ok", text: "", sub: "" },
+    archived: false
   };
+  G.view.text = G.holder === "you" ? "You won the toss. You start on offense."
+                                   : "Engine won the toss. You start on defense.";
   document.getElementById("over").hidden = true;
-  document.getElementById("log").innerHTML = '<div class="empty">No beats played yet.</div>';
-  setVerdict("ok", G.holder === "you" ? "You won the toss. You start on offense."
-                                      : "Engine won the toss. You start on defense.", "");
-  document.getElementById("vYou").textContent = "–";
-  document.getElementById("vEng").textContent = "–";
-  document.getElementById("vYou").className = "sval you empty";
-  document.getElementById("vEng").className = "sval eng empty";
+  renderLog();
+  restoreView();
   render();
+  autosave();
+}
+
+// Re-draw the arena from state alone, so a restored game and a live one take
+// exactly the same path.
+function restoreView() {
+  setVerdict(G.view.kind, G.view.text, G.view.sub);
+  if (G.last) {
+    showBeat(G.last.offSide, G.last.offNum, G.last.defNum, G.last.matched);
+    return;
+  }
+  for (const [id, cls] of [["vYou", "sval you empty"], ["vEng", "sval eng empty"]]) {
+    const el = document.getElementById(id);
+    el.textContent = "–";
+    el.className = cls;
+  }
+  document.getElementById("rYou").innerHTML = "&nbsp;";
+  document.getElementById("rEng").innerHTML = "&nbsp;";
 }
 
 const youOnOffense = () => G.holder === "you";
@@ -494,11 +569,15 @@ function playBeat(yourNumber) {
     sub = `${chargesBefore} → ${G.charges} charges`;
   }
 
-  addLog(G.beat, offSide, offNum, defNum, kind, text.replace(/&mdash;/g, "—"));
+  G.last = { offSide, offNum, defNum, matched: kind === "bad" };
+  G.view = { kind, text, sub };
+  addLog({ n: G.beat, offSide, offNum, defNum, kind,
+           text: text.replace(/&mdash;/g, "—") });
   showBeat(offSide, offNum, defNum, kind === "bad");
   setVerdict(kind, text, sub);
 
   if (G.you >= TARGET || G.eng >= TARGET) finish();
+  else autosave();
   render();
 }
 
@@ -519,6 +598,14 @@ function finish() {
     `your scores: ${G.yourPoints.join(", ") || "none"}<br>` +
     `engine scores: ${G.engPoints.join(", ") || "none"}`;
   document.getElementById("over").hidden = false;
+  // Archive exactly once: a finished game reloaded from a slot must not be
+  // counted a second time.
+  if (!G.archived) {
+    G.archived = true;
+    archiveResult(youWin);
+    renderSaves();
+  }
+  dropStore(KEY_AUTO);
 }
 
 /* ===================================================================
@@ -542,21 +629,42 @@ function setVerdict(kind, text, sub) {
   document.getElementById("vsub").innerHTML = sub || "&nbsp;";
 }
 
-function addLog(n, offSide, offNum, defNum, kind, text) {
+const LOG_KINDS = ["ok", "bad", "score", "big"];
+
+function addLog(entry) {
+  G.log.push(entry);
+  appendLogRow(entry);
+}
+
+function appendLogRow(e) {
   const log = document.getElementById("log");
   if (log.querySelector(".empty")) log.innerHTML = "";
-  const yourNum = offSide === "you" ? offNum : defNum;
-  const engNum = offSide === "you" ? defNum : offNum;
+  const yourNum = e.offSide === "you" ? e.offNum : e.defNum;
+  const engNum = e.offSide === "you" ? e.defNum : e.offNum;
   const row = document.createElement("div");
   row.className = "lrow";
   row.innerHTML =
-    `<span class="ln">${n}</span>` +
+    `<span class="ln">${e.n}</span>` +
     `<span><span class="lp">you ${yourNum}</span>` +
     `<span style="color:var(--dim)"> vs </span>` +
     `<span class="le">eng ${engNum}</span>` +
-    `<span style="color:var(--dim)"> · ${offSide === "you" ? "you" : "eng"} ball</span></span>` +
-    `<span class="lo ${kind}">${text}</span>`;
+    `<span style="color:var(--dim)"> · ${e.offSide === "you" ? "you" : "eng"} ball</span></span>` +
+    `<span class="lo ${e.kind}"></span>`;
+  // The outcome text can arrive from a save file, so it is set as text and
+  // never parsed as markup.
+  row.querySelector(".lo").textContent = e.text;
   log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+}
+
+function renderLog() {
+  const log = document.getElementById("log");
+  if (!G.log.length) {
+    log.innerHTML = '<div class="empty">No beats played yet.</div>';
+    return;
+  }
+  log.innerHTML = "";
+  for (const e of G.log) appendLogRow(e);
   log.scrollTop = log.scrollHeight;
 }
 
@@ -700,6 +808,315 @@ function renderMix() {
 }
 
 /* ===================================================================
+   Saving and loading
+
+   A save is plain JSON.  G is already a flat, serialisable object, so a save
+   is that object inside a small envelope carrying a format tag and a version
+   number -- enough to reject a file that is not one of ours, and to reject an
+   older layout rather than half-restore it.
+
+   Three places keep saves: three named slots and a rolling autosave in
+   localStorage, and .json files the player downloads.  Everything that comes
+   back in is validated field by field before it touches the game, because a
+   file the player picked is not trusted input.
+   =================================================================== */
+const SAVE_FORMAT = "odd-eve-basketball/save";
+const HIST_FORMAT = "odd-eve-basketball/history";
+const SAVE_VERSION = 1;
+const SLOT_COUNT = 3;
+const HIST_LIMIT = 200;
+const KEY_SLOTS = "oeb.slots.v1";
+const KEY_AUTO = "oeb.autosave.v1";
+const KEY_HIST = "oeb.history.v1";
+
+// localStorage throws in private windows and when the quota is full.  Storage
+// being unavailable must never break the game, so every access is guarded and
+// a failure just means this browser cannot remember games.
+function readStore(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch (e) { return fallback; }
+}
+function writeStore(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch (e) { return false; }
+}
+function dropStore(key) {
+  try { localStorage.removeItem(key); } catch (e) {}
+}
+
+function snapshot(name) {
+  return {
+    format: SAVE_FORMAT,
+    version: SAVE_VERSION,
+    saved: new Date().toISOString(),
+    name: name || "",
+    label: `You ${G.you}–${G.eng} Engine · beat ${G.beat}`,
+    state: JSON.parse(JSON.stringify(G))
+  };
+}
+
+const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+// Verdict lines are written into the page as HTML so that entities such as
+// &mdash; keep working; stripping angle brackets keeps a save file from
+// smuggling markup in through them.
+const plain = v => String(v == null ? "" : v).replace(/[<>]/g, "").slice(0, 200);
+
+// Returns a usable game state, or null if the save is not one we can trust.
+function parseSave(save) {
+  if (!save || typeof save !== "object") return null;
+  if (save.format !== SAVE_FORMAT || save.version !== SAVE_VERSION) return null;
+
+  const s = save.state;
+  if (!s || typeof s !== "object") return null;
+  if (!isInt(s.you, 0, 99) || !isInt(s.eng, 0, 99)) return null;
+  if (s.holder !== "you" && s.holder !== "eng") return null;
+  if (!isInt(s.charges, 0, CAP)) return null;
+  if (!isInt(s.beat, 0, 100000) || !isInt(s.tackles, 0, 100000)) return null;
+  if (!Array.isArray(s.log) || !Array.isArray(s.yourPoints) || !Array.isArray(s.engPoints)) return null;
+
+  const log = [];
+  for (const e of s.log) {
+    if (!e || typeof e !== "object") continue;
+    if (!isInt(e.n, 1, 100000)) continue;
+    if (e.offSide !== "you" && e.offSide !== "eng") continue;
+    if (!isInt(e.offNum, 0, 13) || !isInt(e.defNum, 0, 13)) continue;
+    if (!LOG_KINDS.includes(e.kind)) continue;
+    log.push({ n: e.n, offSide: e.offSide, offNum: e.offNum,
+               defNum: e.defNum, kind: e.kind, text: plain(e.text) });
+  }
+
+  let last = null;
+  const l = s.last;
+  if (l && typeof l === "object" &&
+      (l.offSide === "you" || l.offSide === "eng") &&
+      isInt(l.offNum, 0, 13) && isInt(l.defNum, 0, 13)) {
+    last = { offSide: l.offSide, offNum: l.offNum, defNum: l.defNum, matched: !!l.matched };
+  }
+
+  const v = s.view && typeof s.view === "object" ? s.view : {};
+  const view = {
+    kind: LOG_KINDS.includes(v.kind) ? v.kind : "ok",
+    text: plain(v.text),
+    sub: plain(v.sub)
+  };
+
+  const points = arr => arr.filter(p => isInt(p, 1, 99));
+  return {
+    you: s.you, eng: s.eng, holder: s.holder, charges: s.charges,
+    beat: s.beat, over: s.you >= TARGET || s.eng >= TARGET,
+    log, tackles: s.tackles,
+    yourPoints: points(s.yourPoints), engPoints: points(s.engPoints),
+    last, view, archived: !!s.archived
+  };
+}
+
+function applySave(save) {
+  const state = parseSave(save);
+  if (!state) return false;
+  G = state;
+  document.getElementById("over").hidden = true;
+  document.getElementById("err").innerHTML = "&nbsp;";
+  renderLog();
+  restoreView();
+  render();
+  if (G.over) finish();
+  else autosave();
+  return true;
+}
+
+function autosave() {
+  if (G.over) { dropStore(KEY_AUTO); return; }
+  writeStore(KEY_AUTO, snapshot("autosave"));
+}
+
+/* ---------- named slots ---------- */
+function slotList() {
+  const raw = readStore(KEY_SLOTS, []);
+  const out = [];
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const s = Array.isArray(raw) ? raw[i] : null;
+    out.push(s && parseSave(s) ? s : null);
+  }
+  return out;
+}
+
+function saveToSlot(i) {
+  const slots = slotList();
+  if (slots[i] && !confirm(`Overwrite "${slots[i].name || "slot " + (i + 1)}"?`)) return;
+  const suggested = `You ${G.you}–${G.eng} Engine`;
+  const name = prompt("Name this save", slots[i] ? slots[i].name : suggested);
+  if (name === null) return;
+  slots[i] = snapshot(name.trim().slice(0, 40) || suggested);
+  if (!writeStore(KEY_SLOTS, slots)) {
+    return setMsg("Could not save — this browser is blocking storage.", true);
+  }
+  renderSaves();
+  setMsg(`Saved to slot ${i + 1}.`);
+}
+
+function loadFromSlot(i) {
+  const save = slotList()[i];
+  if (!save) return;
+  if (!G.over && G.beat > 0 && !confirm("Load this save? The game in progress is lost.")) return;
+  if (applySave(save)) setMsg(`Loaded "${save.name || "slot " + (i + 1)}".`);
+  else setMsg("That slot could not be read.", true);
+}
+
+function deleteSlot(i) {
+  const slots = slotList();
+  if (!slots[i] || !confirm(`Delete "${slots[i].name || "slot " + (i + 1)}"?`)) return;
+  slots[i] = null;
+  writeStore(KEY_SLOTS, slots);
+  renderSaves();
+  setMsg(`Slot ${i + 1} cleared.`);
+}
+
+/* ---------- .json files ---------- */
+function exportJSON(payload, filename) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoking immediately can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function exportGame() {
+  exportJSON(snapshot(`You ${G.you}–${G.eng} Engine`),
+             `odd-eve-${G.you}-${G.eng}-beat${G.beat}.json`);
+  setMsg("Exported this game.");
+}
+
+function importGame(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => setMsg("That file could not be read.", true);
+  reader.onload = () => {
+    let save;
+    try { save = JSON.parse(reader.result); }
+    catch (e) { return setMsg("That file is not valid JSON.", true); }
+    if (!G.over && G.beat > 0 && !confirm("Load this file? The game in progress is lost.")) return;
+    if (applySave(save)) setMsg(`Loaded "${plain(save.name) || file.name}".`);
+    else setMsg("Not an Odd-Eve save file, or it is damaged.", true);
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- finished-game archive ---------- */
+function historyList() {
+  const raw = readStore(KEY_HIST, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(g => g && typeof g === "object" &&
+                    isInt(g.you, 0, 99) && isInt(g.eng, 0, 99));
+}
+
+function archiveResult(youWin) {
+  const games = historyList();
+  games.push({
+    won: !!youWin, you: G.you, eng: G.eng,
+    beats: G.beat, tackles: G.tackles,
+    date: new Date().toISOString()
+  });
+  writeStore(KEY_HIST, games.slice(-HIST_LIMIT));
+}
+
+/* ---------- rendering the card ---------- */
+let msgTimer = null;
+function setMsg(text, bad) {
+  const el = document.getElementById("saveMsg");
+  el.textContent = text;
+  el.className = "smsg" + (bad ? " bad" : "");
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => { el.innerHTML = "&nbsp;"; el.className = "smsg"; }, 5000);
+}
+
+const shortDate = iso => {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+    " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+};
+
+function renderSaves() {
+  const box = document.getElementById("slots");
+  box.innerHTML = "";
+  slotList().forEach((save, i) => {
+    const row = document.createElement("div");
+    row.className = "slot " + (save ? "filled" : "free");
+
+    const info = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "sname";
+    name.textContent = save ? (save.name || `Slot ${i + 1}`) : `Slot ${i + 1} — empty`;
+    const meta = document.createElement("div");
+    meta.className = "smeta";
+    meta.textContent = save ? `${plain(save.label)} · ${shortDate(save.saved)}` : "nothing saved here";
+    info.append(name, meta);
+
+    const acts = document.createElement("div");
+    acts.className = "sact";
+    const mk = (label, cls, fn, on) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "sbtn" + (cls ? " " + cls : "");
+      b.textContent = label;
+      b.disabled = !on;
+      b.onclick = fn;
+      return b;
+    };
+    acts.append(
+      mk("Save", "", () => saveToSlot(i), true),
+      mk("Load", "", () => loadFromSlot(i), !!save),
+      mk("×", "del", () => deleteSlot(i), !!save)
+    );
+    acts.lastChild.setAttribute("aria-label", `Delete slot ${i + 1}`);
+
+    row.append(info, acts);
+    box.appendChild(row);
+  });
+
+  const games = historyList();
+  const wins = games.filter(g => g.won).length;
+  document.getElementById("recNum").textContent = `${wins}–${games.length - wins}`;
+  document.getElementById("recLab").textContent =
+    games.length ? `over ${games.length} finished game${games.length > 1 ? "s" : ""}` : "record vs. engine";
+  document.getElementById("expHist").disabled = !games.length;
+  document.getElementById("clrHist").disabled = !games.length;
+
+  const hist = document.getElementById("hist");
+  hist.innerHTML = "";
+  if (!games.length) {
+    const none = document.createElement("div");
+    none.className = "hnone";
+    none.textContent = "Finished games are recorded here automatically.";
+    hist.appendChild(none);
+    return;
+  }
+  for (const g of games.slice().reverse()) {
+    const row = document.createElement("div");
+    row.className = "hrow";
+    const res = document.createElement("span");
+    res.className = "hres " + (g.won ? "w" : "l");
+    res.textContent = g.won ? "W" : "L";
+    const score = document.createElement("span");
+    score.textContent = `${g.you}–${g.eng}`;
+    const beats = document.createElement("span");
+    beats.style.color = "var(--dim)";
+    beats.textContent = `${g.beats} beats`;
+    const date = document.createElement("span");
+    date.className = "hdate";
+    date.textContent = shortDate(g.date);
+    row.append(res, score, beats, date);
+    hist.appendChild(row);
+  }
+}
+
+/* ===================================================================
    Input
    =================================================================== */
 function submit(n) {
@@ -739,7 +1156,37 @@ document.addEventListener("keydown", e => {
   if (/^[0-9]$/.test(e.key)) { inp.focus(); inp.value += e.key; }
 });
 
+document.getElementById("expGame").onclick = exportGame;
+document.getElementById("impGame").onclick = () => document.getElementById("impFile").click();
+document.getElementById("impFile").onchange = e => {
+  importGame(e.target.files[0]);
+  e.target.value = "";           // so picking the same file twice still fires
+};
+document.getElementById("expHist").onclick = () => {
+  exportJSON({ format: HIST_FORMAT, version: SAVE_VERSION,
+               exported: new Date().toISOString(), games: historyList() },
+             "odd-eve-history.json");
+  setMsg("Exported your game history.");
+};
+document.getElementById("clrHist").onclick = () => {
+  if (!confirm("Clear your whole game history? Saved slots are kept.")) return;
+  dropStore(KEY_HIST);
+  renderSaves();
+  setMsg("History cleared.");
+};
+
+/* ===================================================================
+   Boot.  Read the autosave before starting a new game, because newGame
+   overwrites it.
+   =================================================================== */
+const resume = readStore(KEY_AUTO, null);
+const resumable = parseSave(resume);
 newGame();
+if (resumable && resumable.beat > 0 && !resumable.over && applySave(resume)) {
+  setVerdict("ok", "Picked up where you left off.",
+             `beat ${G.beat} restored from this browser`);
+}
+renderSaves();
 </script>
 </body>
 </html>

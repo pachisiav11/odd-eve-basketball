@@ -53,6 +53,45 @@ Full write-up in [FINDINGS.md](FINDINGS.md). The short version:
 - The per-beat risk of losing the ball is set purely by how many numbers the
   offense can credibly mix over: **19.5%** below 10 charges, **11.8%** above.
 
+## Saving games
+
+The page keeps games as plain JSON, entirely in your browser. Nothing is
+uploaded and there is no server.
+
+- **Autosave.** The game in progress is written after every beat and restored
+  when you reopen the page, so closing the tab mid-game costs nothing.
+- **Three slots.** Save the current position to a named slot and load it back
+  later. A save carries the score, possession, charge count, beat number and
+  the complete beat log, so a loaded game looks exactly as it did.
+- **Export / import.** Any game can be downloaded as a `.json` file and loaded
+  again on another machine or in another browser.
+- **History.** Finished games are archived automatically with a running
+  win&ndash;loss record, and the whole archive exports as one file.
+
+A save file looks like this:
+
+```json
+{
+  "format": "odd-eve-basketball/save",
+  "version": 1,
+  "saved": "2026-09-13T07:33:00.000Z",
+  "name": "Comeback vs engine",
+  "label": "You 12–14 Engine · beat 37",
+  "state": {
+    "you": 12, "eng": 14, "holder": "you", "charges": 18,
+    "beat": 37, "over": false, "tackles": 6,
+    "yourPoints": [3, 2, 3, 4], "engPoints": [4, 3, 3, 4],
+    "log": [{ "n": 1, "offSide": "you", "offNum": 4, "defNum": 2,
+              "kind": "ok", "text": "Pass good — +2 charges" }]
+  }
+}
+```
+
+Imported files are validated field by field and a file that fails any check is
+rejected rather than half-loaded. If the browser blocks storage &mdash; a private
+window, or a full quota &mdash; the game still plays, it just cannot remember
+anything.
+
 ## Repository layout
 
 | file | purpose |
