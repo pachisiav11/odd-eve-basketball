@@ -15,7 +15,7 @@ it up the court; the other is trying to take it away. First to 15 points wins.
 | 1, 2, 3 | dribble, +1 charge |
 | 4, 5 | pass, +2 charges |
 | 6, 7 | shoot for 2 points, needs 5 charges, possession then changes |
-| 0 | dunk, needs 10 charges, `floor(charges/10) + 2` points, cannot be blocked, keeps possession, costs 10 charges |
+| 0 | dunk, needs 10 charges, `0.5k² − 0.5k + 3` points for `k = floor(charges/10)` — 3, 4, 6, 9, 13 at 10/20/30/40/50 — cannot be blocked, keeps possession, costs 10 charges |
 | 11, 12, 13 | +2, +4, +6 charges, need 10 charges to use |
 | 8, 9, 10 | penalty signals, not modelled here |
 
@@ -43,15 +43,22 @@ leaves you no better reply.
 Full write-up in [FINDINGS.md](FINDINGS.md). The short version:
 
 - Holding the ball at 0&ndash;0 is worth only **51.27%**. The game is near balanced.
-- **The two-point shot is dead.** It carries equilibrium weight in 1.7% of
-  states and was played zero times in 4,000 simulated games. A dunk pays more,
-  keeps possession and cannot be blocked, for the same one beat.
-- Equilibrium **cashes out at 20 charges**, and that threshold barely moves no
-  matter how the dunk reward is shaped &mdash; a quadratic curve changes nothing.
-  What actually pins it at 20 is the rule gating 11/12/13 behind a current
-  charge count of 10.
+- **The two-point shot is all but dead.** It carries equilibrium weight in 1.68%
+  of states, and only at 5&ndash;9 charges &mdash; below the dunk gate &mdash; as an endgame
+  finisher. A dunk pays more, keeps possession and cannot be blocked, for the
+  same one beat.
+- Equilibrium **still cashes out first at 20 charges**, because the reward curve
+  is unchanged below that point. What pins the first cash-out at 20 is not the
+  reward at all, but the rule gating 11/12/13 behind a current charge count of
+  10: dunking at 10 drops you to 0 and revokes the fast, safe numbers, while
+  dunking at 20 drops you to 10 and keeps them.
+- Above 20 the curve does bite: a **second cash-out band opens at 30**, and the
+  push-or-cash margin goes positive again in between, so a stack that overshoots
+  20 is worth carrying to 30 rather than spending. About 4% of dunks now land at
+  30 or more, which the old linear rule never reached.
 - The per-beat risk of losing the ball is set purely by how many numbers the
   offense can credibly mix over: **19.5%** below 10 charges, **11.8%** above.
+  Neither number moved when the reward curve changed.
 
 ## Saving games
 
@@ -114,7 +121,7 @@ Needs Python with `numpy` and `scipy`.
 python build.py
 ```
 
-This solves the game (about 50 seconds), writes `W_linear_cap60.npy` for the
+This solves the game (about 30 seconds), writes `W_cap60.npy` for the
 analysis scripts, and rewrites the table inside `index.html` so the page and the
 solver cannot drift apart. Solved tables are not committed; regenerate them.
 
@@ -123,14 +130,16 @@ solver cannot drift apart. Solved tables are not committed; regenerate them.
 - The closed-form beat solver agrees with a `scipy.linprog` reference, and
   reproduces known matching-pennies values.
 - The JavaScript port reproduces the Python solver to seven decimal places.
-- 4,000 simulated equilibrium games return a 0.5015 win rate against the exact
+- 4,000 simulated equilibrium games return a 0.4955 win rate against the exact
   0.5000 that a fair toss forces.
 - An exhaustive scan of all 12,150 states finds **no** action anywhere that beats
   the equilibrium value, so no fixed-number strategy can exploit the engine.
-  Measured over 20,000 games, always showing the same number wins 0.0% of them.
-- Charge caps of 60 and 100 agree to seven decimal places, so the cap does not
-  bind under equilibrium play. It can be reached by a player who deliberately
-  stalls, which does not affect the analysis.
+  Measured over 20,000 games each, the best fixed number (always 13) wins 0.06%
+  of them and always 5 or always 1 wins none.
+- Charge caps of 60 and 100 agree to five decimal places and give the same
+  push-or-cash decisions, so the cap does not bind under equilibrium play. It can
+  be reached by a player who deliberately stalls, which does not affect the
+  analysis.
 
 ## Licence
 

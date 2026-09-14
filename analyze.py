@@ -3,11 +3,11 @@
 import numpy as np
 
 from matgame import solve_beat
-from rules import CHARGE_GAIN, DUNK, SHOTS, TARGET, dunk_points_linear, offense_actions
+from rules import CHARGE_GAIN, DUNK, SHOTS, TARGET, dunk_points_triangular, offense_actions
 from solver import beat_at
 
 
-def payoffs(table, score_off, score_def, charges, cap, dunk_points=dunk_points_linear):
+def payoffs(table, score_off, score_def, charges, cap, dunk_points=dunk_points_triangular):
     """Success payoff per action, plus the shared payoff for losing the ball."""
     fail_value = 1.0 - table[score_def, score_off, 0]
     succ, unmatched = {}, {}
@@ -41,7 +41,7 @@ def defender_mix(succ, fail_value, value, offense_mix):
 
 
 def tackle_rate(table, score_off, score_def, charges, cap,
-                dunk_points=dunk_points_linear):
+                dunk_points=dunk_points_triangular):
     """Probability the offense loses the ball on this beat, in equilibrium."""
     value, offense_mix = beat_at(table, score_off, score_def, charges, cap, dunk_points)
     succ, fail_value, unmatched = payoffs(table, score_off, score_def, charges,
@@ -52,7 +52,7 @@ def tackle_rate(table, score_off, score_def, charges, cap,
     return sum(offense_mix[a] * defence.get(a, 0.0) for a in offense_mix)
 
 
-def dunk_threshold(table, score_off, score_def, cap, dunk_points=dunk_points_linear):
+def dunk_threshold(table, score_off, score_def, cap, dunk_points=dunk_points_triangular):
     """Lowest charge count at which equilibrium cashes the stack out."""
     for charges in range(10, cap + 1):
         _, mix = beat_at(table, score_off, score_def, charges, cap, dunk_points)
@@ -61,7 +61,7 @@ def dunk_threshold(table, score_off, score_def, cap, dunk_points=dunk_points_lin
     return None
 
 
-def shot_usage(table, cap, dunk_points=dunk_points_linear):
+def shot_usage(table, cap, dunk_points=dunk_points_triangular):
     """Every state where the two-point shot carries any equilibrium weight."""
     used = []
     for score_off in range(TARGET):
@@ -74,7 +74,7 @@ def shot_usage(table, cap, dunk_points=dunk_points_linear):
     return used
 
 
-def crossover(table, score_off, score_def, cap, dunk_points=dunk_points_linear,
+def crossover(table, score_off, score_def, cap, dunk_points=dunk_points_triangular,
               low=10, high=35):
     """Cash out now, or push for a bigger stack?
 

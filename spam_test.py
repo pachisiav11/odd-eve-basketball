@@ -13,10 +13,10 @@ import numpy as np
 
 from analyze import defender_mix, payoffs
 from matgame import solve_beat
-from rules import CHARGE_GAIN, DUNK, SHOTS, TARGET, dunk_points_linear, offense_actions
+from rules import CHARGE_GAIN, DUNK, SHOTS, TARGET, dunk_points_triangular, offense_actions
 
 CAP = 60
-table = np.load("W_linear_cap60.npy")
+table = np.load("W_cap60.npy")
 
 
 def pick(mix, rng):
@@ -49,7 +49,7 @@ def play(policy, rng, stats):
             dfn = policy(list(range(1, 14)), charges)
 
         if off == DUNK:
-            score[holder] += dunk_points_linear(charges)
+            score[holder] += dunk_points_triangular(charges)
             charges -= 10
             stats["peak"] = max(stats["peak"], charges + 10)
         elif off == dfn:

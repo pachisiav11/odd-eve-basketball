@@ -3,11 +3,12 @@ or by how poor the minimum cash-out is."""
 
 from solver import solve
 from analyze import dunk_threshold
-from rules import total_cashout
+from rules import dunk_points_triangular, total_cashout
 
 CAP = 100
 RULES = {
-    "k_plus_2 (current) 3,4,5,6": lambda c: c // 10 + 2,
+    "triangular  current 3,4,6,9": dunk_points_triangular,
+    "k_plus_2   previous 3,4,5,6": lambda c: c // 10 + 2,
     "k          low start 1,2,3,4": lambda c: c // 10,
     "3k-2   low start, steep 1,4,7": lambda c: 3 * (c // 10) - 2,
     "k+5    high start 6,7,8,9": lambda c: c // 10 + 5,

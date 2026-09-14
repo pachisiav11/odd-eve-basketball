@@ -4,7 +4,7 @@ Run this after changing anything in rules.py or solver.py:
 
     python build.py
 
-It writes W_linear_cap60.npy for the analysis scripts and rewrites the
+It writes W_cap60.npy for the analysis scripts and rewrites the
 TABLE_B64 constant inside index.html so the page and the solver never drift
 apart.
 """
@@ -23,7 +23,7 @@ CAP = 60
 def main():
     start = time.time()
     table = solve(cap=CAP)
-    np.save("W_linear_cap60.npy", table)
+    np.save("W_cap60.npy", table)
 
     payload = base64.b64encode(table.astype(np.float32).tobytes()).decode("ascii")
     html = open("index.html", encoding="utf-8").read()

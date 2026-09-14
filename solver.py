@@ -25,7 +25,7 @@ from rules import (
     DUNK,
     SHOTS,
     TARGET,
-    dunk_points_linear,
+    dunk_points_triangular,
     offense_actions,
 )
 
@@ -63,7 +63,7 @@ def _chain(score_off, score_def, fail_value, table, cap, dunk_points, dunk_keeps
     return values
 
 
-def solve(cap=DEFAULT_CAP, dunk_points=dunk_points_linear, tol=1e-13, max_iter=5000,
+def solve(cap=DEFAULT_CAP, dunk_points=dunk_points_triangular, tol=1e-13, max_iter=5000,
           dunk_keeps=True):
     """Solve the whole game. Returns the value table W."""
     table = np.zeros((TARGET, TARGET, cap + 1))
@@ -102,7 +102,7 @@ def solve(cap=DEFAULT_CAP, dunk_points=dunk_points_linear, tol=1e-13, max_iter=5
 
 
 def beat_at(table, score_off, score_def, charges, cap=DEFAULT_CAP,
-            dunk_points=dunk_points_linear):
+            dunk_points=dunk_points_triangular):
     """Recompute the equilibrium mix for a single state, for analysis."""
     fail_value = 1.0 - table[score_def, score_off, 0]
     succ, unmatched = {}, {}

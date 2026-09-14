@@ -9,8 +9,9 @@ Action encoding (the number a player shows on a beat):
     1, 2, 3   dribble   -> +1 charge
     4, 5      pass      -> +2 charges
     6, 7      shoot     -> +2 points, requires >= 5 charges
-    0         dunk      -> floor(c/10)+2 points, requires >= 10 charges,
-                           cannot be blocked, keeps possession, -10 charges
+    0         dunk      -> 0.5k^2-0.5k+3 points for k = floor(c/10),
+                           requires >= 10 charges, cannot be blocked,
+                           keeps possession, -10 charges
     11        -> +2 charges,  requires >= 10 charges
     12        -> +4 charges,  requires >= 10 charges
     13        -> +6 charges,  requires >= 10 charges
@@ -41,9 +42,16 @@ DUNK_MIN_CHARGE = 10
 CHARGE_GAIN = {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 11: 2, 12: 4, 13: 6}
 
 
-def dunk_points_linear(charges):
-    """The current reward rule: floor(c/10) + 2."""
-    return charges // 10 + 2
+def dunk_points_triangular(charges):
+    """The current reward rule: 0.5k^2 - 0.5k + 3 for k = floor(c/10).
+
+    Written as k*(k-1)//2 + 3 because k*(k-1) is always even, so the reward is
+    an exact integer at every charge level and scores stay usable as indices.
+    Pays 3, 4, 6, 9, 13, 18 at 10 through 60 charges: the step per ten charges
+    is k rather than a constant 1.
+    """
+    k = charges // 10
+    return k * (k - 1) // 2 + 3
 
 
 def offense_actions(charges, charge_cap):
@@ -68,7 +76,7 @@ def offense_actions(charges, charge_cap):
     return acts
 
 
-def total_cashout(charges, dunk_points=dunk_points_linear):
+def total_cashout(charges, dunk_points=dunk_points_triangular):
     """Points from dunking repeatedly until the stack falls below 10.
 
     Because a dunk cannot be blocked and keeps possession, this whole sequence

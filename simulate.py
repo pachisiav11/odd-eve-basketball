@@ -12,7 +12,7 @@ from collections import Counter
 import numpy as np
 
 from analyze import defender_mix, payoffs
-from rules import CHARGE_GAIN, DUNK, SHOTS, TARGET, dunk_points_linear
+from rules import CHARGE_GAIN, DUNK, SHOTS, TARGET, dunk_points_triangular
 from solver import beat_at
 
 
@@ -26,7 +26,7 @@ def pick(mix, rng):
     return action
 
 
-def play_game(table, cap, rng, dunk_points=dunk_points_linear, stats=None):
+def play_game(table, cap, rng, dunk_points=dunk_points_triangular, stats=None):
     score = [0, 0]
     holder = rng.randrange(2)      # the toss is a fair coin
     charges = 0
@@ -78,7 +78,7 @@ def play_game(table, cap, rng, dunk_points=dunk_points_linear, stats=None):
     return score, beats
 
 
-def run(table, cap, games=20000, seed=1, dunk_points=dunk_points_linear):
+def run(table, cap, games=20000, seed=1, dunk_points=dunk_points_triangular):
     rng = random.Random(seed)
     stats = {
         "actions": Counter(), "points": Counter(),

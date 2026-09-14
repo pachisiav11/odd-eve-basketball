@@ -12,13 +12,14 @@ import time
 import numpy as np
 
 from analyze import dunk_threshold, tackle_rate
-from rules import total_cashout
+from rules import dunk_points_triangular, total_cashout
 from solver import solve
 
 CAP = 100
 
 RULES = {
-    "linear_k_plus_2": lambda c: c // 10 + 2,      # current rule
+    "triangular":      dunk_points_triangular,     # current rule, 3,4,6,9,13
+    "linear_k_plus_2": lambda c: c // 10 + 2,
     "flat_2":          lambda c: 2,
     "flat_3":          lambda c: 3,
     "steep_2k_plus_1": lambda c: 2 * (c // 10) + 1,
