@@ -70,6 +70,8 @@ button:disabled{opacity:.28;cursor:not-allowed}
 /* ---------- layout ---------- */
 .cols{display:grid;grid-template-columns:1.32fr 1fr;gap:14px;align-items:start}
 @media(max-width:900px){.cols{grid-template-columns:1fr}.board{grid-template-columns:1fr auto 1fr}}
+@media(max-width:460px){.lrow{grid-template-columns:22px 1fr auto;gap:6px;padding:5px 10px;font-size:11px}
+  .rpbar{padding:8px 10px;gap:5px}.rpbar button{padding:4px 6px}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden}
 .chd{padding:11px 16px;border-bottom:1px solid var(--line);font-size:10.5px;letter-spacing:.15em;
   text-transform:uppercase;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:9px}
@@ -138,9 +140,14 @@ input[type=text]::placeholder{color:#4a5562;font-weight:400}
 .mixrow{display:flex;align-items:center;gap:9px;margin-bottom:5px;font-size:12px}
 .mixn{font-family:var(--mono);font-weight:650;width:22px;text-align:right;flex:none}
 .mixb{flex:1;height:7px;background:#1c222a;border-radius:4px;overflow:hidden}
-.mixf{height:100%;background:var(--eng);border-radius:4px}
+.mixf{display:block;height:100%;background:var(--eng);border-radius:4px}
 .mixf.you{background:var(--you)}
 .mixp{font-family:var(--mono);color:var(--muted);width:42px;text-align:right;flex:none;font-size:11px}
+.mixrow.hit .mixn{color:var(--warn)}
+.mixrow.hit .mixp{color:var(--warn)}
+.mixhd{font-size:12.5px;color:var(--muted);margin-bottom:11px}
+.mixhd b{color:var(--text);font-weight:650}
+.mixgap{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .toggle{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);
   text-transform:none;letter-spacing:0;font-weight:500;cursor:pointer}
 .note{font-size:11.5px;color:var(--dim);margin-top:11px;line-height:1.5}
@@ -152,11 +159,30 @@ input[type=text]::placeholder{color:#4a5562;font-weight:400}
 .lrow{display:grid;grid-template-columns:34px 1fr auto;gap:9px;padding:5px 16px;border-bottom:1px solid #1a2029;
   align-items:baseline}
 .lrow:last-child{border-bottom:none}
+.lrow.tap{cursor:pointer}
+.lrow.tap:hover{background:#151b23}
+.lrow.now{background:#16202b;box-shadow:inset 2px 0 0 var(--you)}
+.lsub{display:block;font-size:10px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
 .ln{color:var(--dim)}
 .lp{color:var(--you)} .le{color:var(--eng)}
 .lo{text-align:right;font-size:11px}
 .lo.score{color:var(--good)} .lo.bad{color:var(--bad)} .lo.ok{color:var(--dim)} .lo.big{color:var(--warn)}
 .empty{padding:22px 16px;color:var(--dim);font-size:12.5px;text-align:center}
+
+/* ---------- replay ---------- */
+.rpbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 16px;
+  border-bottom:1px solid var(--line);background:var(--panel2)}
+.rpbar[hidden]{display:none}
+.rpbar button{padding:4px 8px;font-size:11px;border-radius:6px;font-family:var(--mono);line-height:1}
+.rpbar input[type=range]{flex:1;min-width:80px;accent-color:var(--you);height:3px;cursor:pointer}
+.rppos{font-family:var(--mono);font-size:10.5px;color:var(--dim);flex:none;font-variant-numeric:tabular-nums}
+.rpx{color:var(--bad)}
+.tlink{margin-left:auto;background:none;border:none;padding:0;font-size:11px;color:var(--dim);
+  text-decoration:underline;text-transform:none;letter-spacing:0;font-weight:500}
+.tlink:hover:not(:disabled){color:var(--muted);background:none;border-color:transparent}
+.hbtnx{background:none;border:none;padding:0;font-size:11px;color:var(--dim);text-decoration:underline;
+  font-family:var(--sans);flex:none}
+.hbtnx:hover:not(:disabled){color:var(--you);background:none;border-color:transparent}
 
 /* ---------- saved games ---------- */
 .slots{display:flex;flex-direction:column;gap:7px}
@@ -199,6 +225,8 @@ input[type=text]::placeholder{color:#4a5562;font-weight:400}
 .otitle{font-size:27px;font-weight:700;margin-bottom:7px;letter-spacing:-.02em}
 .ofin{font-family:var(--mono);font-size:38px;font-weight:700;margin:14px 0 6px;font-variant-numeric:tabular-nums}
 .ostat{font-size:12.5px;color:var(--muted);margin-bottom:22px;font-family:var(--mono);line-height:1.7}
+.orow{display:flex;gap:9px;justify-content:center}
+.orow button{padding:0 18px;height:36px}
 footer{margin-top:26px;font-size:11.5px;color:var(--dim);text-align:center;line-height:1.7}
 footer code{font-family:var(--mono);color:var(--muted)}
 </style>
@@ -308,7 +336,19 @@ footer code{font-family:var(--mono);color:var(--muted)}
     </div>
 
     <div class="card">
-      <div class="chd">Beat log</div>
+      <div class="chd">Beat log
+        <button type="button" class="tlink" id="rpOpen">replay</button>
+      </div>
+      <div class="rpbar" id="rpBar" hidden>
+        <button type="button" id="rpFirst" aria-label="First beat" title="First beat">&#124;&#9664;</button>
+        <button type="button" id="rpPrev" aria-label="Previous beat" title="Previous beat">&#9664;</button>
+        <button type="button" id="rpPlay" aria-label="Play">&#9654; play</button>
+        <button type="button" id="rpNext" aria-label="Next beat" title="Next beat">&#9654;</button>
+        <button type="button" id="rpLast" aria-label="Last beat" title="Last beat">&#9654;&#124;</button>
+        <input type="range" id="rpSlider" min="1" max="1" value="1" aria-label="Beat number">
+        <span class="rppos" id="rpPos">1 / 1</span>
+        <button type="button" class="rpx" id="rpExit">exit</button>
+      </div>
       <div class="log" id="log"><div class="empty">No beats played yet.</div></div>
     </div>
 
@@ -351,7 +391,11 @@ footer code{font-family:var(--mono);color:var(--muted)}
     <div style="font-size:12.5px;color:var(--muted)" id="oSub"></div>
     <div class="ofin" id="oFinal"></div>
     <div class="ostat" id="oStat"></div>
-    <button class="go" id="oAgain">Play again</button>
+    <div class="orow">
+      <button class="go" id="oAgain">Play again</button>
+      <button type="button" id="oExport">Download .json</button>
+      <button type="button" id="oReplay">Replay</button>
+    </div>
   </div>
 </div>
 
@@ -368,6 +412,19 @@ const TARGET = 15, CAP = 60, DUNK = 0;
 const SHOTS = [6, 7];
 const GAIN = {1:1, 2:1, 3:1, 4:2, 5:2, 11:2, 12:4, 13:6};
 const SHOOT_MIN = 5, DUNK_MIN = 10;
+
+// What each number means.  The keypad, the beat log and the save format all
+// name numbers through this one map.
+const NUMBER_ROLE = {
+  0:"dunk", 1:"dribble", 2:"dribble", 3:"dribble", 4:"pass", 5:"pass",
+  6:"shot", 7:"shot", 8:"penalty", 9:"penalty", 10:"penalty",
+  11:"boost", 12:"boost", 13:"boost"
+};
+
+// Probabilities are recorded to six places: far enough to reproduce every
+// decision the engine made, short enough to leave the file readable.
+const r6 = x => Math.round(x * 1e6) / 1e6;
+const mix6 = m => { const o = {}; for (const a in m) o[a] = r6(m[a]); return o; };
 
 const TABLE = (() => {
   const bin = atob(TABLE_B64);
@@ -468,9 +525,12 @@ function sample(mix) {
 // arena display so a reloaded game looks exactly as it did when it was saved.
 let G;
 function newGame() {
+  exitReplay(true);
+  const toss = Math.random() < 0.5 ? "you" : "eng";
   G = {
+    started: new Date().toISOString(), ended: null, toss,
     you: 0, eng: 0,
-    holder: Math.random() < 0.5 ? "you" : "eng",
+    holder: toss,
     charges: 0, beat: 0, over: false,
     log: [], tackles: 0, yourPoints: [], engPoints: [],
     last: null,
@@ -504,9 +564,12 @@ function restoreView() {
 }
 
 const youOnOffense = () => G.holder === "you";
-// The value table is always read from the point of view of the ball carrier.
-const offScore = () => youOnOffense() ? G.you : G.eng;
-const defScore = () => youOnOffense() ? G.eng : G.you;
+// The value table is always read from the point of view of the ball carrier,
+// so every lookup goes through a position rather than through G directly --
+// which is what lets the replay viewer ask the same questions of a position
+// the game has already moved on from.
+const offScoreOf = s => (s.holder === "you" ? s.you : s.eng);
+const defScoreOf = s => (s.holder === "you" ? s.eng : s.you);
 
 function legalForYou() {
   return youOnOffense() ? offenseActions(G.charges)
@@ -514,76 +577,177 @@ function legalForYou() {
 }
 
 /* ===================================================================
+   One beat, resolved
+
+   Live play, the replay viewer and the loader that reads a save file all put
+   a pair of numbers through resolveBeat, so a game read back out of JSON and
+   a game played in the browser can never disagree about what happened.
+   =================================================================== */
+function resolveBeat(pre, offNum, defNum) {
+  const off = pre.holder, def = off === "you" ? "eng" : "you";
+  const post = { you: pre.you, eng: pre.eng, holder: off, charges: pre.charges, over: false };
+  const o = { event: "", kind: "ok", text: "", sub: "", points: 0, scoredBy: null,
+              matched: false, turnover: false, chargeDelta: 0 };
+  const toOther = `possession to ${def === "you" ? "you" : "the engine"}`;
+
+  if (offNum === DUNK) {
+    const pts = dunkPoints(pre.charges);
+    post[off] += pts;
+    post.charges = pre.charges - 10;
+    o.event = "dunk"; o.kind = "big"; o.points = pts; o.scoredBy = off;
+    o.text = `DUNK &mdash; ${pts} points`;
+    o.sub = `unblockable · ${pre.charges} → ${post.charges} charges · possession kept`;
+  } else if (offNum === defNum) {
+    o.event = SHOTS.includes(offNum) ? "block" : "tackle";
+    o.kind = "bad"; o.matched = true; o.turnover = true;
+    o.text = o.event === "block" ? "BLOCKED" : "TACKLE";
+    o.sub = `${pre.charges} charges lost · ${toOther}`;
+    post.holder = def; post.charges = 0;
+  } else if (SHOTS.includes(offNum)) {
+    post[off] += 2;
+    o.event = "shot"; o.kind = "score"; o.points = 2; o.scoredBy = off; o.turnover = true;
+    o.text = "SHOT SCORED &mdash; 2 points";
+    o.sub = `charges reset · ${toOther}`;
+    post.holder = def; post.charges = 0;
+  } else {
+    const g = GAIN[offNum];
+    post.charges = Math.min(CAP, pre.charges + g);
+    o.event = NUMBER_ROLE[offNum];
+    const verb = offNum <= 3 ? "Dribble" : (offNum <= 5 ? "Pass" : "Boost");
+    o.text = `${verb} good &mdash; +${g} charge${g > 1 ? "s" : ""}`;
+    o.sub = `${pre.charges} → ${post.charges} charges`;
+  }
+  o.chargeDelta = post.charges - pre.charges;
+  post.over = post.you >= TARGET || post.eng >= TARGET;
+  return { post, outcome: o };
+}
+
+// Your win probability from a position, whichever side holds the ball.
+function yourWinProb(s) {
+  if (s.you >= TARGET) return 1;
+  if (s.eng >= TARGET) return 0;
+  return r6(s.holder === "you" ? W(s.you, s.eng, s.charges)
+                               : 1 - W(s.eng, s.you, s.charges));
+}
+// The ball carrier's win probability, or null once the game is decided.
+function ballWinProb(s) {
+  if (s.you >= TARGET || s.eng >= TARGET) return null;
+  return r6(s.holder === "you" ? W(s.you, s.eng, s.charges) : W(s.eng, s.you, s.charges));
+}
+
+// Everything the equilibrium has to say about a position: both mixes, the
+// value of the beat to the ball carrier, what is legal here, and the risk the
+// ball changes hands.  Recorded with every beat so a save file carries not
+// only what was played but what should have been.
+function analysePosition(s) {
+  const a = s.holder === "you" ? s.you : s.eng;
+  const b = s.holder === "you" ? s.eng : s.you;
+  const { succ, fail, unmatched } = payoffs(a, b, s.charges);
+  const best = solveBeat(succ, fail, unmatched);
+  const defMix = defenderMix(succ, fail);
+  let risk = 0;
+  if (!best.mix[DUNK]) for (const k in best.mix) risk += best.mix[k] * (defMix[k] || 0);
+  return {
+    offenseMix: mix6(best.mix),
+    defenseMix: mix6(defMix),
+    offenseValue: r6(best.value),
+    legalOffense: offenseActions(s.charges),
+    tackleRisk: r6(risk),
+    cashOut: !!best.mix[DUNK],
+    dunkPoints: s.charges >= DUNK_MIN ? dunkPoints(s.charges) : null
+  };
+}
+
+// The full record of one beat: both numbers, both roles, the position before
+// and after, what the rules made of it, and the equilibrium it was played
+// against.  This is the unit the save file is built from, and the unit the
+// replay viewer reads back.
+function beatRecord(n, pre, post, outcome, offNum, defNum, eq, times) {
+  const off = pre.holder, def = off === "you" ? "eng" : "you";
+  const youNum = off === "you" ? offNum : defNum;
+  const engNum = off === "you" ? defNum : offNum;
+  const youRole = off === "you" ? "offense" : "defense";
+  const engRole = off === "you" ? "defense" : "offense";
+  const yourMix = youRole === "offense" ? eq.offenseMix : eq.defenseMix;
+  const engMix = engRole === "offense" ? eq.offenseMix : eq.defenseMix;
+  return {
+    n,
+    t: times.t,
+    sinceStartMs: times.sinceStartMs,
+    sincePrevMs: times.sincePrevMs,
+    offSide: off, defSide: def, offNum, defNum,
+    kind: outcome.kind,
+    text: outcome.text.replace(/&mdash;/g, "—"),
+    sub: outcome.sub,
+    you: { role: youRole, number: youNum, label: NUMBER_ROLE[youNum],
+           equilibrium: r6(yourMix[youNum] || 0) },
+    eng: { role: engRole, number: engNum, label: NUMBER_ROLE[engNum],
+           equilibrium: r6(engMix[engNum] || 0), drawnFrom: engMix,
+           uniformFallback: !!times.fallback },
+    outcome: {
+      event: outcome.event, points: outcome.points, scoredBy: outcome.scoredBy,
+      chargeDelta: outcome.chargeDelta, matched: outcome.matched,
+      turnover: outcome.turnover, possessionAfter: post.holder
+    },
+    before: { you: pre.you, eng: pre.eng, holder: pre.holder, charges: pre.charges,
+              yourWinProb: yourWinProb(pre), ballWinProb: ballWinProb(pre) },
+    after: { you: post.you, eng: post.eng, holder: post.holder, charges: post.charges,
+             over: post.over, yourWinProb: yourWinProb(post), ballWinProb: ballWinProb(post) },
+    equilibrium: eq
+  };
+}
+
+/* ===================================================================
    Playing a beat
    =================================================================== */
 function playBeat(yourNumber) {
-  if (G.over) return;
-  const { succ, fail, unmatched } = payoffs(offScore(), defScore(), G.charges);
-  let offNum, defNum, engMix;
+  if (G.over || inReplay()) return;
+  const pre = { you: G.you, eng: G.eng, holder: G.holder, charges: G.charges };
+  const eq = analysePosition(pre);
 
-  if (youOnOffense()) {
-    engMix = defenderMix(succ, fail);
+  let offNum, defNum, fallback = false;
+  if (pre.holder === "you") {
     offNum = yourNumber;
-    defNum = sample(engMix);
-    if (defNum === null) defNum = 1 + Math.floor(Math.random() * 13);
+    defNum = sample(eq.defenseMix);
+    // Only when the carrier has no matchable move at all, which the table
+    // never reaches under legal play; the guess still has to be made.
+    if (defNum === null) { defNum = 1 + Math.floor(Math.random() * 13); fallback = true; }
   } else {
-    engMix = solveBeat(succ, fail, unmatched).mix;
-    offNum = sample(engMix);
+    offNum = sample(eq.offenseMix);
     defNum = yourNumber;
   }
 
-  G.beat++;
-  const offSide = G.holder;
-  const chargesBefore = G.charges;
-  let kind, text, sub = "";
+  const { post, outcome } = resolveBeat(pre, offNum, defNum);
+  const now = Date.now();
+  const startT = tstamp(G.started);
+  const prevT = G.log.length ? tstamp(G.log[G.log.length - 1].t) : startT;
+  const rec = beatRecord(G.beat + 1, pre, post, outcome, offNum, defNum, eq, {
+    t: new Date(now).toISOString(),
+    sinceStartMs: startT === null ? null : now - startT,
+    sincePrevMs: prevT === null ? null : now - prevT,
+    fallback
+  });
 
-  if (offNum === DUNK) {
-    const pts = dunkPoints(chargesBefore);
-    G[offSide] += pts;
-    G.charges -= 10;
-    kind = "big";
-    text = `DUNK &mdash; ${pts} points`;
-    sub = `unblockable · ${chargesBefore} → ${G.charges} charges · possession kept`;
-    (offSide === "you" ? G.yourPoints : G.engPoints).push(pts);
-  } else if (offNum === defNum) {
-    const wasShot = SHOTS.includes(offNum);
-    G.tackles++;
-    kind = "bad";
-    text = wasShot ? "BLOCKED" : "TACKLE";
-    sub = `${chargesBefore} charges lost · possession to ${offSide === "you" ? "the engine" : "you"}`;
-    G.holder = offSide === "you" ? "eng" : "you";
-    G.charges = 0;
-  } else if (SHOTS.includes(offNum)) {
-    G[offSide] += 2;
-    kind = "score";
-    text = "SHOT SCORED &mdash; 2 points";
-    sub = `charges reset · possession to ${offSide === "you" ? "the engine" : "you"}`;
-    (offSide === "you" ? G.yourPoints : G.engPoints).push(2);
-    G.holder = offSide === "you" ? "eng" : "you";
-    G.charges = 0;
-  } else {
-    const g = GAIN[offNum];
-    G.charges = Math.min(CAP, G.charges + g);
-    kind = "ok";
-    const verb = offNum <= 3 ? "Dribble" : (offNum <= 5 ? "Pass" : "Boost");
-    text = `${verb} good &mdash; +${g} charge${g > 1 ? "s" : ""}`;
-    sub = `${chargesBefore} → ${G.charges} charges`;
-  }
+  G.beat = rec.n;
+  G.you = post.you; G.eng = post.eng;
+  G.holder = post.holder; G.charges = post.charges;
+  if (outcome.matched) G.tackles++;
+  if (outcome.points) (outcome.scoredBy === "you" ? G.yourPoints : G.engPoints).push(outcome.points);
+  G.last = { offSide: pre.holder, offNum, defNum, matched: outcome.matched };
+  G.view = { kind: outcome.kind, text: outcome.text, sub: outcome.sub };
 
-  G.last = { offSide, offNum, defNum, matched: kind === "bad" };
-  G.view = { kind, text, sub };
-  addLog({ n: G.beat, offSide, offNum, defNum, kind,
-           text: text.replace(/&mdash;/g, "—") });
-  showBeat(offSide, offNum, defNum, kind === "bad");
-  setVerdict(kind, text, sub);
+  addLog(rec);
+  showBeat(pre.holder, offNum, defNum, outcome.matched);
+  setVerdict(outcome.kind, outcome.text, outcome.sub);
 
-  if (G.you >= TARGET || G.eng >= TARGET) finish();
+  if (post.over) finish();
   else autosave();
   render();
 }
 
 function finish() {
   G.over = true;
+  if (!G.ended) G.ended = new Date().toISOString();
   const youWin = G.you >= TARGET;
   document.getElementById("oTitle").textContent = youWin ? "You win" : "Engine wins";
   document.getElementById("oTitle").style.color = youWin ? "var(--you)" : "var(--eng)";
@@ -603,15 +767,23 @@ function finish() {
   // counted a second time.
   if (!G.archived) {
     G.archived = true;
-    archiveResult(youWin);
+    const kept = archiveResult(youWin);
     renderSaves();
+    if (kept < 0) setMsg("This browser is blocking storage — the result was not recorded.", true);
   }
   dropStore(KEY_AUTO);
 }
 
 /* ===================================================================
    Rendering
+
+   The page is drawn from one position object.  Live that is G; inside the
+   replay viewer it is the position a recorded beat left behind.  Replaying a
+   game therefore takes the same path through the renderer as playing one.
    =================================================================== */
+const S = () => (RP ? RP.frame : G);
+const pc = x => (x * 100).toFixed(1) + "%";
+
 function showBeat(offSide, offNum, defNum, matched) {
   const yourNum = offSide === "you" ? offNum : defNum;
   const engNum = offSide === "you" ? defNum : offNum;
@@ -630,32 +802,51 @@ function setVerdict(kind, text, sub) {
   document.getElementById("vsub").innerHTML = sub || "&nbsp;";
 }
 
-const LOG_KINDS = ["ok", "bad", "score", "big"];
-
 function addLog(entry) {
   G.log.push(entry);
-  appendLogRow(entry);
+  appendLogRow(entry, G.log.length - 1);
+  syncReplayControls();
 }
 
-function appendLogRow(e) {
+// One row per beat: who showed what, what the rules made of it, and the score
+// and charge count it left behind.  Clicking a row opens it in the replay
+// viewer, so the log doubles as the scrubber.
+function appendLogRow(e, i) {
   const log = document.getElementById("log");
   if (log.querySelector(".empty")) log.innerHTML = "";
-  const yourNum = e.offSide === "you" ? e.offNum : e.defNum;
-  const engNum = e.offSide === "you" ? e.defNum : e.offNum;
   const row = document.createElement("div");
-  row.className = "lrow";
-  row.innerHTML =
-    `<span class="ln">${e.n}</span>` +
-    `<span><span class="lp">you ${yourNum}</span>` +
+  row.className = "lrow tap" + (RP && RP.i === i ? " now" : "");
+  row.dataset.beat = i;
+  row.onclick = () => enterReplay(i);
+
+  const num = document.createElement("span");
+  num.className = "ln";
+  num.textContent = e.n;
+
+  const moves = document.createElement("span");
+  moves.innerHTML =
+    `<span class="lp">you ${e.you.number}</span>` +
     `<span style="color:var(--dim)"> vs </span>` +
-    `<span class="le">eng ${engNum}</span>` +
-    `<span style="color:var(--dim)"> · ${e.offSide === "you" ? "you" : "eng"} ball</span></span>` +
-    `<span class="lo ${e.kind}"></span>`;
-  // The outcome text can arrive from a save file, so it is set as text and
-  // never parsed as markup.
-  row.querySelector(".lo").textContent = e.text;
+    `<span class="le">eng ${e.eng.number}</span>` +
+    `<span style="color:var(--dim)"> · ${e.offSide === "you" ? "you" : "eng"} ball</span>`;
+  const mSub = document.createElement("span");
+  mSub.className = "lsub";
+  mSub.textContent = `${e.you.label} v ${e.eng.label} · ${e.before.charges}→${e.after.charges} charges`;
+  moves.appendChild(mSub);
+
+  const out = document.createElement("span");
+  out.className = "lo " + e.kind;
+  // Outcome text can arrive from a save file, so it is set as text and never
+  // parsed as markup.
+  out.textContent = e.text;
+  const oSub = document.createElement("span");
+  oSub.className = "lsub";
+  oSub.textContent = `${e.after.you}–${e.after.eng}`;
+  out.appendChild(oSub);
+
+  row.append(num, moves, out);
   log.appendChild(row);
-  log.scrollTop = log.scrollHeight;
+  if (!RP) log.scrollTop = log.scrollHeight;
 }
 
 function renderLog() {
@@ -665,8 +856,16 @@ function renderLog() {
     return;
   }
   log.innerHTML = "";
-  for (const e of G.log) appendLogRow(e);
-  log.scrollTop = log.scrollHeight;
+  G.log.forEach(appendLogRow);
+  if (RP) scrollLogTo(RP.i);
+  else log.scrollTop = log.scrollHeight;
+}
+
+function scrollLogTo(i) {
+  const log = document.getElementById("log");
+  const row = log.querySelector(`.lrow[data-beat="${i}"]`);
+  if (!row) return;
+  log.scrollTop = row.offsetTop - log.offsetTop - log.clientHeight / 2 + row.offsetHeight / 2;
 }
 
 const LABELS = {
@@ -675,45 +874,54 @@ const LABELS = {
 };
 
 function render() {
-  document.getElementById("sYou").textContent = G.you;
-  document.getElementById("sEng").textContent = G.eng;
-  document.getElementById("beatNo").textContent = G.beat;
-  document.getElementById("tYou").className = "team you" + (youOnOffense() ? " has" : "");
-  document.getElementById("tEng").className = "team eng r" + (youOnOffense() ? "" : " has");
-  document.getElementById("mYou").textContent = youOnOffense() ? "● on offense" : "on defense";
-  document.getElementById("mEng").textContent = youOnOffense() ? "on defense" : "on offense ●";
+  const s = S(), on = s.holder === "you", replay = inReplay();
+  document.getElementById("sYou").textContent = s.you;
+  document.getElementById("sEng").textContent = s.eng;
+  document.getElementById("beatNo").textContent = s.beat;
+  document.getElementById("tYou").className = "team you" + (on ? " has" : "");
+  document.getElementById("tEng").className = "team eng r" + (on ? "" : " has");
+  document.getElementById("mYou").textContent = on ? "● on offense" : "on defense";
+  document.getElementById("mEng").textContent = on ? "on defense" : "on offense ●";
 
   // charge meter
-  document.getElementById("chgNum").textContent = G.charges;
-  document.getElementById("chgNum").style.color = youOnOffense() ? "var(--you)" : "var(--eng)";
+  document.getElementById("chgNum").textContent = s.charges;
+  document.getElementById("chgNum").style.color = on ? "var(--you)" : "var(--eng)";
   const bar = document.getElementById("chgBar");
   bar.innerHTML = "";
   for (let i = 1; i <= 30; i++) {
-    const s = document.createElement("div");
-    s.className = "seg" + (i <= G.charges ? " on" : "") + (youOnOffense() ? "" : " e") +
-                  (i % 5 === 0 ? " t" : "");
-    bar.appendChild(s);
+    const seg = document.createElement("div");
+    seg.className = "seg" + (i <= s.charges ? " on" : "") + (on ? "" : " e") +
+                    (i % 5 === 0 ? " t" : "");
+    bar.appendChild(seg);
   }
-  const who = youOnOffense() ? "You" : "The engine";
+  const who = on ? "You" : "The engine";
+  const decided = s.you >= TARGET || s.eng >= TARGET;
   let note;
-  if (G.charges < SHOOT_MIN) note = `${who} need ${SHOOT_MIN - G.charges} more to unlock the shot`;
-  else if (G.charges < DUNK_MIN) note = `${who} can shoot · ${DUNK_MIN - G.charges} more unlocks dunk + 11/12/13`;
+  if (decided) note = `${s.you >= TARGET ? "You" : "The engine"} reached ${TARGET} — the game ended here`;
+  else if (s.charges < SHOOT_MIN) note = `${who} need ${SHOOT_MIN - s.charges} more to unlock the shot`;
+  else if (s.charges < DUNK_MIN) note = `${who} can shoot · ${DUNK_MIN - s.charges} more unlocks dunk + 11/12/13`;
   else {
     // Asked of the solved table rather than hardcoded: the cash-out point moves
     // with the score, and with any change to the reward curve.
-    const { succ, fail, unmatched } = payoffs(offScore(), defScore(), G.charges);
+    const { succ, fail, unmatched } = payoffs(offScoreOf(s), defScoreOf(s), s.charges);
     const cashes = solveBeat(succ, fail, unmatched).mix[DUNK] > 0;
-    note = `dunk worth ${dunkPoints(G.charges)} · equilibrium `
+    note = `dunk worth ${dunkPoints(s.charges)} · equilibrium `
          + (cashes ? "cashes out here" : "keeps building");
   }
   document.getElementById("chgNote").textContent = note;
 
   // prompt + keypad
-  const legal = legalForYou();
-  const on = youOnOffense();
-  document.getElementById("prompt").innerHTML = on
-    ? `<span class="tag off">Your ball</span> Pick your number. If the engine shows the same one, you lose the ball.`
-    : `<span class="tag def">Engine's ball</span> Guess their number. Match it and you take the ball.`;
+  const legal = replay ? [] : legalForYou();
+  const prompt = document.getElementById("prompt");
+  if (replay) {
+    prompt.innerHTML = `<span class="tag def">Replay</span> ` +
+      `Beat ${RP.i + 1} of ${G.log.length}. The game itself is untouched &mdash; ` +
+      `exit the replay to carry on playing.`;
+  } else {
+    prompt.innerHTML = on
+      ? `<span class="tag off">Your ball</span> Pick your number. If the engine shows the same one, you lose the ball.`
+      : `<span class="tag def">Engine's ball</span> Guess their number. Match it and you take the ball.`;
+  }
   const pad = document.getElementById("pad");
   pad.innerHTML = "";
   for (const n of [1,2,3,4,5,6,7,8,9,10,11,12,13,0]) {
@@ -721,27 +929,28 @@ function render() {
     b.type = "button";
     const ok = legal.includes(n);
     b.className = "key" + (ok ? "" : " off") + (n === 0 && ok ? " dunk" : "");
-    b.disabled = !ok || G.over;
+    b.disabled = !ok || G.over || replay;
     b.innerHTML = `${n}<span class="kt">${LABELS[n]}</span>`;
     b.setAttribute("aria-label", `Show ${n} — ${LABELS[n]}`);
     if (ok) b.onclick = () => submit(n);
     pad.appendChild(b);
   }
 
-  renderLegend();
+  renderLegend(s);
   renderPosition();
   renderMix();
-  document.getElementById("inp").disabled = G.over;
-  document.getElementById("go").disabled = G.over;
-  if (!G.over) document.getElementById("inp").focus();
+  syncReplayControls();
+  document.getElementById("inp").disabled = G.over || replay;
+  document.getElementById("go").disabled = G.over || replay;
+  if (!G.over && !replay) document.getElementById("inp").focus();
 }
 
-function renderLegend() {
-  const c = G.charges, on = youOnOffense();
+function renderLegend(s) {
+  const c = s.charges, on = s.holder === "you";
   const rows = [
     ["1 2 3", "Dribble &mdash; +1 charge", false],
     ["4 5", "Pass &mdash; +2 charges", false],
-    ["6 7", `Shoot &mdash; 2 points, then possession changes${on ? "" : ""}`, c < SHOOT_MIN],
+    ["6 7", "Shoot &mdash; 2 points, then possession changes", c < SHOOT_MIN],
     ["0", `Dunk &mdash; ${dunkPoints(Math.max(c,10))} points here, cannot be blocked, keeps possession, &minus;10 charges`, c < DUNK_MIN],
     ["11 12 13", "+2, +4, +6 charges", c < DUNK_MIN],
     ["8 9 10", "Penalty numbers &mdash; never legal on offense", true]
@@ -759,20 +968,39 @@ function renderLegend() {
   extra.style.marginTop = "6px";
   extra.style.fontSize = "11.5px";
   extra.innerHTML = on
-    ? "Greyed numbers are locked at your current charge count."
+    ? "Greyed numbers are locked at the current charge count."
     : "On defense you may show any number from 1 to 13.";
   dl.append(extra);
 }
 
 function renderPosition() {
-  const p = youOnOffense() ? W(G.you, G.eng, G.charges)
-                           : 1 - W(G.eng, G.you, G.charges);
-  const pct = (p * 100).toFixed(1);
-  document.getElementById("wpNum").textContent = pct + "%";
+  const s = S(), e = replayBeat();
+  const p = e ? e.after.yourWinProb : yourWinProb(s);
+  document.getElementById("wpNum").textContent = pc(p);
   document.getElementById("wpNum").style.color =
     p > 0.55 ? "var(--good)" : (p < 0.45 ? "var(--bad)" : "var(--text)");
-  document.getElementById("wpFill").style.width = pct + "%";
-  const { succ, fail, unmatched } = payoffs(offScore(), defScore(), G.charges);
+  document.getElementById("wpFill").style.width = pc(p);
+
+  const note = document.getElementById("posNote");
+  if (e) {
+    // In the replay viewer the interesting number is not the position but the
+    // beat: what it cost, and what it risked.
+    const d = e.after.yourWinProb - e.before.yourWinProb;
+    note.innerHTML =
+      `Beat ${e.n} moved your win probability from ` +
+      `<b style="color:var(--text)">${pc(e.before.yourWinProb)}</b> to ` +
+      `<b style="color:var(--text)">${pc(e.after.yourWinProb)}</b> ` +
+      `(<b style="color:var(--${d >= 0 ? "good" : "bad"})">${d >= 0 ? "+" : "−"}${(Math.abs(d) * 100).toFixed(1)}</b>).<br>` +
+      `Going into it, the ball changed hands ` +
+      `<b style="color:var(--text)">${pc(e.equilibrium.tackleRisk)}</b> of the time under equilibrium.`;
+    return;
+  }
+  if (s.you >= TARGET || s.eng >= TARGET) {
+    note.innerHTML = `Final score <b style="color:var(--text)">${s.you}–${s.eng}</b>. ` +
+      `${s.you >= TARGET ? "You" : "The engine"} got there first.`;
+    return;
+  }
+  const { succ, fail, unmatched } = payoffs(offScoreOf(s), defScoreOf(s), s.charges);
   const best = solveBeat(succ, fail, unmatched);
   const tackleRisk = (() => {
     if (best.mix[DUNK]) return 0;
@@ -781,17 +1009,54 @@ function renderPosition() {
     for (const a in best.mix) r += best.mix[a] * (y[a] || 0);
     return r;
   })();
-  document.getElementById("posNote").innerHTML =
-    `Ball carrier wins <b style="color:var(--text)">${(W(offScore(), defScore(), G.charges) * 100).toFixed(1)}%</b> of the time from here.<br>` +
+  note.innerHTML =
+    `Ball carrier wins <b style="color:var(--text)">${pc(W(offScoreOf(s), defScoreOf(s), s.charges))}</b> of the time from here.<br>` +
     `Risk of losing the ball on this beat under equilibrium: ` +
-    `<b style="color:var(--text)">${(tackleRisk * 100).toFixed(1)}%</b>.`;
+    `<b style="color:var(--text)">${pc(tackleRisk)}</b>.`;
+}
+
+// One block of mix bars.  `played` marks the number that was actually shown.
+function mixBars(mix, played, youSide) {
+  const entries = Object.entries(mix).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) return `<div class="note">No mix &mdash; forced move.</div>`;
+  const max = entries[0][1];
+  let html = "";
+  for (const [a, p] of entries) {
+    const hit = played !== null && +a === played;
+    html += `<div class="mixrow${hit ? " hit" : ""}"><span class="mixn">${+a}</span>` +
+      `<span class="mixb"><span class="mixf${youSide ? " you" : ""}" ` +
+      `style="width:${(p / max * 100).toFixed(1)}%"></span></span>` +
+      `<span class="mixp">${pc(p)}</span></div>`;
+  }
+  return html;
 }
 
 function renderMix() {
   const box = document.getElementById("mixBox");
+  const e = replayBeat();
+  if (e) {
+    // Replay shows both sides of the beat: the mix the engine drew its number
+    // from, and the mix the equilibrium would have had you play.
+    const yourMix = e.you.role === "offense" ? e.equilibrium.offenseMix : e.equilibrium.defenseMix;
+    box.innerHTML =
+      `<div class="mixhd">Engine was on <b>${e.eng.role}</b> and showed ` +
+      `<b>${e.eng.number}</b> &mdash; drawn from this mix` +
+      (e.eng.uniformFallback ? ` (no matchable move here, so it guessed evenly)` : "") + `</div>` +
+      mixBars(e.eng.drawnFrom, e.eng.number, false) +
+      `<div class="mixgap"><div class="mixhd">You were on <b>${e.you.role}</b> and showed ` +
+      `<b>${e.you.number}</b> &mdash; equilibrium weight ` +
+      `<b>${pc(e.you.equilibrium)}</b></div>` +
+      mixBars(yourMix, e.you.number, true) + `</div>`;
+    return;
+  }
+  const s = S(), on = s.holder === "you";
+  if (s.you >= TARGET || s.eng >= TARGET) {
+    box.innerHTML = `<div class="note">The game is over — there is no beat left to solve. ` +
+      `Open the replay to see the mixes it was played against.</div>`;
+    return;
+  }
   const reveal = document.getElementById("reveal").checked;
-  const on = youOnOffense();
-  const { succ, fail, unmatched } = payoffs(offScore(), defScore(), G.charges);
+  const { succ, fail, unmatched } = payoffs(offScoreOf(s), defScoreOf(s), s.charges);
   const mix = on ? defenderMix(succ, fail) : solveBeat(succ, fail, unmatched).mix;
   const label = on ? "Defending. It will show one of these:"
                    : "On offense. It will play one of these:";
@@ -802,39 +1067,177 @@ function renderMix() {
       `because knowing the probabilities still leaves you no better reply.</div>`;
     return;
   }
-  const entries = Object.entries(mix).sort((a, b) => b[1] - a[1]);
-  let html = `<div style="font-size:12.5px;color:var(--muted);margin-bottom:11px">${label}</div>`;
-  const max = entries.length ? entries[0][1] : 1;
-  for (const [a, p] of entries) {
-    html += `<div class="mixrow"><span class="mixn">${a}</span>` +
-      `<span class="mixb"><span class="mixf${on ? "" : ""}" style="width:${(p / max * 100).toFixed(1)}%"></span></span>` +
-      `<span class="mixp">${(p * 100).toFixed(1)}%</span></div>`;
+  box.innerHTML = `<div style="font-size:12.5px;color:var(--muted);margin-bottom:11px">${label}</div>` +
+    mixBars(mix, null, false);
+}
+
+/* ===================================================================
+   Replay
+
+   A finished or half-played game is already a list of resolved beats, each
+   carrying the position it left behind, so replaying one is a matter of
+   pointing the renderer at a beat instead of at G.  Nothing here writes to G:
+   leaving the viewer puts the live game back on screen untouched.
+   =================================================================== */
+let RP = null;
+const inReplay = () => RP !== null;
+const replayBeat = () => (RP ? G.log[RP.i] : null);
+const REPLAY_MS = 850;
+
+function replayFrame(i) {
+  const e = G.log[i];
+  return {
+    you: e.after.you, eng: e.after.eng, holder: e.after.holder,
+    charges: e.after.charges, beat: e.n, over: false,
+    last: { offSide: e.offSide, offNum: e.offNum, defNum: e.defNum, matched: e.outcome.matched },
+    view: { kind: e.kind, text: e.text, sub: e.sub }
+  };
+}
+
+function enterReplay(i) {
+  if (!G.log.length) return;
+  const at = Math.max(0, Math.min(G.log.length - 1, i | 0));
+  const opening = !RP;
+  RP = { i: at, frame: replayFrame(at), timer: null, playing: false };
+  if (opening) document.getElementById("over").hidden = true;
+  document.getElementById("rpBar").hidden = false;
+  showReplayBeat();
+}
+
+function showReplayBeat() {
+  RP.frame = replayFrame(RP.i);
+  const f = RP.frame;
+  showBeat(f.last.offSide, f.last.offNum, f.last.defNum, f.last.matched);
+  setVerdict(f.view.kind, f.view.text, f.view.sub);
+  for (const row of document.querySelectorAll(".lrow")) {
+    row.classList.toggle("now", +row.dataset.beat === RP.i);
   }
-  if (!entries.length) html += `<div class="note">No mix &mdash; forced move.</div>`;
-  box.innerHTML = html;
+  scrollLogTo(RP.i);
+  render();
+}
+
+function replayGo(i) {
+  if (!RP) return;
+  RP.i = Math.max(0, Math.min(G.log.length - 1, i));
+  showReplayBeat();
+}
+
+function replayPlay(on) {
+  if (!RP) return;
+  clearInterval(RP.timer);
+  RP.timer = null;
+  RP.playing = on && RP.i < G.log.length - 1;
+  if (RP.playing) {
+    RP.timer = setInterval(() => {
+      if (!RP || RP.i >= G.log.length - 1) return replayPlay(false);
+      replayGo(RP.i + 1);
+    }, REPLAY_MS);
+  }
+  syncReplayControls();
+}
+
+// `silent` is for a new game, where there is no live position to put back.
+function exitReplay(silent) {
+  if (!RP) return;
+  clearInterval(RP.timer);
+  RP = null;
+  document.getElementById("rpBar").hidden = true;
+  for (const row of document.querySelectorAll(".lrow.now")) row.classList.remove("now");
+  if (silent) return;
+  restoreView();
+  render();
+  document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
+  if (G.over) document.getElementById("over").hidden = false;
+}
+
+function syncReplayControls() {
+  const open = document.getElementById("rpOpen");
+  open.disabled = !G.log.length;
+  open.textContent = RP ? "replaying" : "replay";
+  const slider = document.getElementById("rpSlider");
+  slider.max = Math.max(1, G.log.length);
+  if (!RP) return;
+  slider.value = RP.i + 1;
+  document.getElementById("rpPos").textContent = `${RP.i + 1} / ${G.log.length}`;
+  document.getElementById("rpPlay").innerHTML = RP.playing ? "&#10073;&#10073; pause" : "&#9654; play";
+  document.getElementById("rpFirst").disabled = RP.i === 0;
+  document.getElementById("rpPrev").disabled = RP.i === 0;
+  document.getElementById("rpNext").disabled = RP.i >= G.log.length - 1;
+  document.getElementById("rpLast").disabled = RP.i >= G.log.length - 1;
 }
 
 /* ===================================================================
    Saving and loading
 
-   A save is plain JSON.  G is already a flat, serialisable object, so a save
-   is that object inside a small envelope carrying a format tag and a version
-   number -- enough to reject a file that is not one of ours, and to reject an
-   older layout rather than half-restore it.
+   A save is plain JSON and carries the whole game: the rules it was played
+   under, the engine that played it, a derived summary, and every beat with
+   both numbers, both roles, the position before and after, and the
+   equilibrium mixes the beat was played against.
+
+   None of that has to be trusted on the way back in.  The loader replays the
+   move list from the opening toss through the same transition function the
+   live game uses, rebuilding scores, charges, possession and analysis from
+   the rules; a file whose moves do not add up to the position it claims is
+   rejected rather than half-loaded.
 
    Three places keep saves: three named slots and a rolling autosave in
-   localStorage, and .json files the player downloads.  Everything that comes
-   back in is validated field by field before it touches the game, because a
-   file the player picked is not trusted input.
+   localStorage, and .json files the player downloads.  Browser storage is
+   small, so only the most recent finished games keep their beats there --
+   exported files always carry everything.
    =================================================================== */
 const SAVE_FORMAT = "odd-eve-basketball/save";
 const HIST_FORMAT = "odd-eve-basketball/history";
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 const SLOT_COUNT = 3;
-const HIST_LIMIT = 200;
-const KEY_SLOTS = "oeb.slots.v1";
-const KEY_AUTO = "oeb.autosave.v1";
-const KEY_HIST = "oeb.history.v1";
+const HIST_LIMIT = 200;   // summary rows kept
+const HIST_FULL = 10;     // how many of those also keep every beat
+const KEY_SLOTS = "oeb.slots.v2";
+const KEY_AUTO = "oeb.autosave.v2";
+const KEY_HIST = "oeb.history.v2";
+
+// A file has to say what game it is a game of.  These two blocks travel with
+// every save, so a reader -- or a later version of this page -- can tell
+// whether the rules and the solved table still match.
+const RULES = {
+  target: TARGET,
+  chargeCap: CAP,
+  shootMinCharge: SHOOT_MIN,
+  dunkMinCharge: DUNK_MIN,
+  shotPoints: 2,
+  chargeGain: GAIN,
+  numbers: NUMBER_ROLE,
+  defenderActions: [1,2,3,4,5,6,7,8,9,10,11,12,13],
+  dunk: {
+    number: DUNK,
+    formula: "0.5k^2 - 0.5k + 3 points, k = floor(charges / 10)",
+    cost: 10,
+    blockable: false,
+    keepsPossession: true,
+    points: (() => { const o = {}; for (let c = DUNK_MIN; c <= CAP; c += 10) o[c] = dunkPoints(c); return o; })()
+  },
+  match: "Identical numbers hand the ball over and reset charges; a matched shot is a block. " +
+         "The dunk is number 0 and the defender may only show 1 to 13, so it cannot be matched."
+};
+
+// FNV-1a over the packed table, so two files can be compared on whether they
+// were produced against the same solve.
+const TABLE_CHECKSUM = (() => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < TABLE_B64.length; i++) {
+    h ^= TABLE_B64.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return "fnv1a:" + h.toString(16).padStart(8, "0");
+})();
+
+const ENGINE = {
+  kind: "exact-equilibrium",
+  opponent: "engine",
+  table: { shape: [TARGET, TARGET, CAP + 1], dtype: "float32", checksum: TABLE_CHECKSUM },
+  note: "Win probabilities for the player in possession, solved by backward induction. " +
+        "Each beat is a matching-pennies game solved in closed form, so the mixes recorded " +
+        "with a beat are exact and can be recomputed from the position alone."
+};
 
 // localStorage throws in private windows and when the quota is full.  Storage
 // being unavailable must never break the game, so every access is guarded and
@@ -853,6 +1256,82 @@ function dropStore(key) {
   try { localStorage.removeItem(key); } catch (e) {}
 }
 
+const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+// Names and labels are the only text a file supplies that reaches the page;
+// every other line is regenerated from the rules on load.  Stripping angle
+// brackets keeps a save file from smuggling markup in through them.
+const plain = v => String(v == null ? "" : v).replace(/[<>]/g, "").slice(0, 200);
+const tstamp = v => {
+  if (typeof v !== "string" || v.length > 40) return null;
+  const d = Date.parse(v);
+  return Number.isFinite(d) ? d : null;
+};
+
+/* ---------- what the beats add up to ---------- */
+function sideStats() {
+  return { points: 0, scores: [], dunks: 0, shots: 0, shotsBlocked: 0, tackled: 0,
+           steals: 0, possessions: 0, beatsOnOffense: 0, beatsOnDefense: 0,
+           chargesGained: 0, chargePeak: 0, dunkCharges: [], numbers: {} };
+}
+
+// Everything derivable from the beat list, worked out once and written into
+// the file so a reader never has to re-derive it.
+function gameSummary() {
+  const st = { you: sideStats(), eng: sideStats() };
+  let leadChanges = 0, sign = 0;
+  const largestLead = { you: 0, eng: 0 };
+  let biggestSwing = { n: null, delta: 0 };
+  const scoreLine = [];
+  st[G.toss].possessions = 1;
+
+  for (const e of G.log) {
+    const off = st[e.offSide], def = st[e.defSide];
+    off.beatsOnOffense++; def.beatsOnDefense++;
+    st.you.numbers[e.you.number] = (st.you.numbers[e.you.number] || 0) + 1;
+    st.eng.numbers[e.eng.number] = (st.eng.numbers[e.eng.number] || 0) + 1;
+    if (e.outcome.points) {
+      st[e.outcome.scoredBy].points += e.outcome.points;
+      st[e.outcome.scoredBy].scores.push(e.outcome.points);
+      scoreLine.push({ n: e.n, by: e.outcome.scoredBy, how: e.outcome.event,
+                       points: e.outcome.points, you: e.after.you, eng: e.after.eng });
+    }
+    if (e.outcome.event === "dunk") { off.dunks++; off.dunkCharges.push(e.before.charges); }
+    if (e.outcome.event === "shot") off.shots++;
+    if (e.outcome.event === "block") { off.shotsBlocked++; def.steals++; }
+    if (e.outcome.event === "tackle") { off.tackled++; def.steals++; }
+    if (e.outcome.chargeDelta > 0) off.chargesGained += e.outcome.chargeDelta;
+    off.chargePeak = Math.max(off.chargePeak, e.before.charges, e.after.charges);
+    if (e.after.holder !== e.offSide) st[e.after.holder].possessions++;
+
+    const d = e.after.you - e.after.eng, sg = Math.sign(d);
+    if (sg !== 0 && sign !== 0 && sg !== sign) leadChanges++;
+    if (sg !== 0) sign = sg;
+    largestLead.you = Math.max(largestLead.you, d);
+    largestLead.eng = Math.max(largestLead.eng, -d);
+    const swing = e.after.yourWinProb - e.before.yourWinProb;
+    if (Math.abs(swing) > Math.abs(biggestSwing.delta)) biggestSwing = { n: e.n, delta: r6(swing) };
+  }
+
+  const tackles = st.you.tackled + st.eng.tackled;
+  const blocks = st.you.shotsBlocked + st.eng.shotsBlocked;
+  const startMs = tstamp(G.started), endMs = tstamp(G.ended);
+  return {
+    beats: G.beat,
+    possessions: st.you.possessions + st.eng.possessions,
+    turnovers: tackles + blocks, tackles, blocks,
+    toss: G.toss,
+    startedAt: G.started, endedAt: G.ended,
+    durationMs: startMs !== null && endMs !== null ? endMs - startMs : null,
+    over: G.over,
+    winner: G.over ? (G.you >= TARGET ? "you" : "eng") : null,
+    score: { you: G.you, eng: G.eng },
+    yourWinProb: yourWinProb(G),
+    leadChanges, largestLead, biggestSwing, scoreLine,
+    you: st.you, eng: st.eng
+  };
+}
+
+/* ---------- writing ---------- */
 function snapshot(name) {
   return {
     format: SAVE_FORMAT,
@@ -860,17 +1339,22 @@ function snapshot(name) {
     saved: new Date().toISOString(),
     name: name || "",
     label: `You ${G.you}–${G.eng} Engine · beat ${G.beat}`,
-    state: JSON.parse(JSON.stringify(G))
+    rules: RULES,
+    engine: ENGINE,
+    summary: gameSummary(),
+    beats: G.log,
+    state: {
+      started: G.started, ended: G.ended, toss: G.toss,
+      you: G.you, eng: G.eng, holder: G.holder, charges: G.charges,
+      beat: G.beat, over: G.over, tackles: G.tackles,
+      yourPoints: G.yourPoints, engPoints: G.engPoints,
+      last: G.last, view: G.view, archived: G.archived
+    }
   };
 }
 
-const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
-// Verdict lines are written into the page as HTML so that entities such as
-// &mdash; keep working; stripping angle brackets keeps a save file from
-// smuggling markup in through them.
-const plain = v => String(v == null ? "" : v).replace(/[<>]/g, "").slice(0, 200);
-
-// Returns a usable game state, or null if the save is not one we can trust.
+/* ---------- reading ---------- */
+// Returns a usable game state, or null if the file is not one we can trust.
 function parseSave(save) {
   if (!save || typeof save !== "object") return null;
   if (save.format !== SAVE_FORMAT || save.version !== SAVE_VERSION) return null;
@@ -879,49 +1363,69 @@ function parseSave(save) {
   if (!s || typeof s !== "object") return null;
   if (!isInt(s.you, 0, 99) || !isInt(s.eng, 0, 99)) return null;
   if (s.holder !== "you" && s.holder !== "eng") return null;
+  if (s.toss !== "you" && s.toss !== "eng") return null;
   if (!isInt(s.charges, 0, CAP)) return null;
-  if (!isInt(s.beat, 0, 100000) || !isInt(s.tackles, 0, 100000)) return null;
-  if (!Array.isArray(s.log) || !Array.isArray(s.yourPoints) || !Array.isArray(s.engPoints)) return null;
+  if (!isInt(s.beat, 0, 100000)) return null;
+  if (!Array.isArray(save.beats) || save.beats.length !== s.beat) return null;
 
-  const log = [];
-  for (const e of s.log) {
-    if (!e || typeof e !== "object") continue;
-    if (!isInt(e.n, 1, 100000)) continue;
-    if (e.offSide !== "you" && e.offSide !== "eng") continue;
-    if (!isInt(e.offNum, 0, 13) || !isInt(e.defNum, 0, 13)) continue;
-    if (!LOG_KINDS.includes(e.kind)) continue;
-    log.push({ n: e.n, offSide: e.offSide, offNum: e.offNum,
-               defNum: e.defNum, kind: e.kind, text: plain(e.text) });
+  const startMs = tstamp(s.started);
+  const started = startMs === null ? new Date().toISOString() : s.started;
+  const log = [], yourPoints = [], engPoints = [];
+  let cur = { you: 0, eng: 0, holder: s.toss, charges: 0 };
+  let tackles = 0, prevMs = startMs;
+
+  for (let i = 0; i < save.beats.length; i++) {
+    const e = save.beats[i];
+    if (!e || typeof e !== "object") return null;
+    if (!isInt(e.offNum, 0, 13) || !isInt(e.defNum, 1, 13)) return null;
+    if (e.offSide !== cur.holder) return null;
+    if (!offenseActions(cur.charges).includes(e.offNum)) return null;
+
+    const eq = analysePosition(cur);
+    const { post, outcome } = resolveBeat(cur, e.offNum, e.defNum);
+    const ms = tstamp(e.t);
+    log.push(beatRecord(i + 1, cur, post, outcome, e.offNum, e.defNum, eq, {
+      t: ms === null ? null : e.t,
+      sinceStartMs: ms !== null && startMs !== null ? ms - startMs
+                  : (isInt(e.sinceStartMs, 0, 1e12) ? e.sinceStartMs : null),
+      sincePrevMs: ms !== null && prevMs !== null ? ms - prevMs
+                 : (isInt(e.sincePrevMs, 0, 1e12) ? e.sincePrevMs : null),
+      fallback: !!(e.eng && e.eng.uniformFallback)
+    }));
+
+    if (outcome.matched) tackles++;
+    if (outcome.points) (outcome.scoredBy === "you" ? yourPoints : engPoints).push(outcome.points);
+    cur = { you: post.you, eng: post.eng, holder: post.holder, charges: post.charges };
+    if (ms !== null) prevMs = ms;
+    // A game cannot go on after it is won.
+    if (post.over && i !== save.beats.length - 1) return null;
   }
 
-  let last = null;
-  const l = s.last;
-  if (l && typeof l === "object" &&
-      (l.offSide === "you" || l.offSide === "eng") &&
-      isInt(l.offNum, 0, 13) && isInt(l.defNum, 0, 13)) {
-    last = { offSide: l.offSide, offNum: l.offNum, defNum: l.defNum, matched: !!l.matched };
-  }
+  // The move list is the game.  If it does not arrive at the position the file
+  // claims, the file is damaged or was written against other rules.
+  if (cur.you !== s.you || cur.eng !== s.eng ||
+      cur.holder !== s.holder || cur.charges !== s.charges) return null;
 
-  const v = s.view && typeof s.view === "object" ? s.view : {};
-  const view = {
-    kind: LOG_KINDS.includes(v.kind) ? v.kind : "ok",
-    text: plain(v.text),
-    sub: plain(v.sub)
-  };
-
-  const points = arr => arr.filter(p => isInt(p, 1, 99));
+  const tail = log.length ? log[log.length - 1] : null;
   return {
-    you: s.you, eng: s.eng, holder: s.holder, charges: s.charges,
-    beat: s.beat, over: s.you >= TARGET || s.eng >= TARGET,
-    log, tackles: s.tackles,
-    yourPoints: points(s.yourPoints), engPoints: points(s.engPoints),
-    last, view, archived: !!s.archived
+    started, ended: tstamp(s.ended) === null ? null : s.ended, toss: s.toss,
+    you: cur.you, eng: cur.eng, holder: cur.holder, charges: cur.charges,
+    beat: log.length, over: cur.you >= TARGET || cur.eng >= TARGET,
+    log, tackles, yourPoints, engPoints,
+    last: tail ? { offSide: tail.offSide, offNum: tail.offNum,
+                   defNum: tail.defNum, matched: tail.outcome.matched } : null,
+    view: tail ? { kind: tail.kind, text: tail.text, sub: tail.sub }
+               : { kind: "ok", sub: "",
+                   text: s.toss === "you" ? "You won the toss. You start on offense."
+                                          : "Engine won the toss. You start on defense." },
+    archived: !!s.archived
   };
 }
 
 function applySave(save) {
   const state = parseSave(save);
   if (!state) return false;
+  exitReplay(true);
   G = state;
   document.getElementById("over").hidden = true;
   document.getElementById("err").innerHTML = "&nbsp;";
@@ -997,7 +1501,7 @@ function exportJSON(payload, filename) {
 function exportGame() {
   exportJSON(snapshot(`You ${G.you}–${G.eng} Engine`),
              `odd-eve-${G.you}-${G.eng}-beat${G.beat}.json`);
-  setMsg("Exported this game.");
+  setMsg(`Exported this game — all ${G.beat} beat${G.beat === 1 ? "" : "s"} in full.`);
 }
 
 function importGame(file) {
@@ -1009,28 +1513,58 @@ function importGame(file) {
     try { save = JSON.parse(reader.result); }
     catch (e) { return setMsg("That file is not valid JSON.", true); }
     if (!G.over && G.beat > 0 && !confirm("Load this file? The game in progress is lost.")) return;
-    if (applySave(save)) setMsg(`Loaded "${plain(save.name) || file.name}".`);
-    else setMsg("Not an Odd-Eve save file, or it is damaged.", true);
+    if (applySave(save)) return setMsg(`Loaded "${plain(save.name) || file.name}".`);
+    const old = save && save.format === SAVE_FORMAT && save.version !== SAVE_VERSION;
+    setMsg(old ? `That is a version ${plain(save.version)} save. This page reads version ${SAVE_VERSION}, which carries the whole game.`
+               : "Not an Odd-Eve save file, or it does not add up.", true);
   };
   reader.readAsText(file);
 }
 
 /* ---------- finished-game archive ---------- */
+const summaryRow = g => ({ won: !!g.won, you: g.you, eng: g.eng,
+                           beats: g.beats, tackles: g.tackles, date: g.date });
+
 function historyList() {
   const raw = readStore(KEY_HIST, []);
   if (!Array.isArray(raw)) return [];
-  return raw.filter(g => g && typeof g === "object" &&
-                    isInt(g.you, 0, 99) && isInt(g.eng, 0, 99));
+  const out = [];
+  for (const g of raw) {
+    if (!g || typeof g !== "object") continue;
+    if (!isInt(g.you, 0, 99) || !isInt(g.eng, 0, 99)) continue;
+    const row = summaryRow(g);
+    if (g.save && typeof g.save === "object") row.save = g.save;
+    out.push(row);
+  }
+  return out;
 }
 
+// Returns how many games kept every beat, or -1 if storage refused entirely.
 function archiveResult(youWin) {
   const games = historyList();
-  games.push({
-    won: !!youWin, you: G.you, eng: G.eng,
-    beats: G.beat, tackles: G.tackles,
-    date: new Date().toISOString()
-  });
-  writeStore(KEY_HIST, games.slice(-HIST_LIMIT));
+  games.push(Object.assign(
+    { won: !!youWin, you: G.you, eng: G.eng, beats: G.beat, tackles: G.tackles,
+      date: new Date().toISOString() },
+    { save: JSON.parse(JSON.stringify(snapshot(`You ${G.you}–${G.eng} Engine`))) }
+  ));
+  const rows = games.slice(-HIST_LIMIT);
+  // Full records are large and localStorage is small, so only the most recent
+  // games keep their beats; older ones fall back to a summary row.  If the
+  // browser still refuses the write, give detail up one game at a time rather
+  // than lose the result altogether.
+  for (let keep = Math.min(HIST_FULL, rows.length); keep >= 0; keep--) {
+    const out = rows.map((g, i) => (i < rows.length - keep ? summaryRow(g) : g));
+    if (writeStore(KEY_HIST, out)) return keep;
+  }
+  return -1;
+}
+
+function openArchived(g) {
+  if (!g.save) return;
+  if (!G.over && G.beat > 0 && !confirm("Open this game? The game in progress is lost.")) return;
+  if (!applySave(g.save)) return setMsg("That archived game could not be read.", true);
+  enterReplay(0);
+  setMsg("Replaying an archived game.");
 }
 
 /* ---------- rendering the card ---------- */
@@ -1115,10 +1649,21 @@ function renderSaves() {
     const beats = document.createElement("span");
     beats.style.color = "var(--dim)";
     beats.textContent = `${g.beats} beats`;
+    row.append(res, score, beats);
+    // Only the most recent games still carry their beats; the rest are the
+    // summary row and cannot be replayed.
+    if (g.save) {
+      const rp = document.createElement("button");
+      rp.type = "button";
+      rp.className = "hbtnx";
+      rp.textContent = "replay";
+      rp.onclick = () => openArchived(g);
+      row.append(rp);
+    }
     const date = document.createElement("span");
     date.className = "hdate";
     date.textContent = shortDate(g.date);
-    row.append(res, score, beats, date);
+    row.append(date);
     hist.appendChild(row);
   }
 }
@@ -1157,9 +1702,38 @@ inp.addEventListener("keydown", e => {
 });
 document.getElementById("newgame").onclick = newGame;
 document.getElementById("oAgain").onclick = newGame;
+document.getElementById("oExport").onclick = exportGame;
+document.getElementById("oReplay").onclick = () => enterReplay(0);
 document.getElementById("reveal").onchange = renderMix;
+
+/* ---------- replay transport ---------- */
+const rpStep = d => { if (!RP) return; replayPlay(false); replayGo(RP.i + d); };
+document.getElementById("rpOpen").onclick = () => enterReplay(RP ? RP.i : 0);
+document.getElementById("rpExit").onclick = () => exitReplay(false);
+document.getElementById("rpFirst").onclick = () => { replayPlay(false); replayGo(0); };
+document.getElementById("rpPrev").onclick = () => rpStep(-1);
+document.getElementById("rpNext").onclick = () => rpStep(1);
+document.getElementById("rpLast").onclick = () => { replayPlay(false); replayGo(G.log.length - 1); };
+document.getElementById("rpPlay").onclick = () => {
+  if (!RP) return;
+  if (RP.playing) return replayPlay(false);
+  if (RP.i >= G.log.length - 1) replayGo(0);   // replay again from the tip-off
+  replayPlay(true);
+};
+document.getElementById("rpSlider").oninput = e => {
+  replayPlay(false);
+  replayGo(+e.target.value - 1);
+};
+
 document.addEventListener("keydown", e => {
   if (e.target === inp) return;
+  if (RP) {
+    // Digits must not queue a move while the live game is off screen.
+    if (e.key === "ArrowLeft") { e.preventDefault(); rpStep(-1); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); rpStep(1); }
+    else if (e.key === "Escape") exitReplay(false);
+    return;
+  }
   if (/^[0-9]$/.test(e.key)) { inp.focus(); inp.value += e.key; }
 });
 
@@ -1170,10 +1744,27 @@ document.getElementById("impFile").onchange = e => {
   e.target.value = "";           // so picking the same file twice still fires
 };
 document.getElementById("expHist").onclick = () => {
-  exportJSON({ format: HIST_FORMAT, version: SAVE_VERSION,
-               exported: new Date().toISOString(), games: historyList() },
-             "odd-eve-history.json");
-  setMsg("Exported your game history.");
+  const games = historyList();
+  const full = games.filter(g => g.save).length;
+  exportJSON({
+    format: HIST_FORMAT,
+    version: SAVE_VERSION,
+    exported: new Date().toISOString(),
+    rules: RULES,
+    engine: ENGINE,
+    record: { played: games.length, won: games.filter(g => g.won).length,
+              lost: games.filter(g => !g.won).length, withEveryBeat: full },
+    // Each game carries its own complete save, so a game can be lifted out of
+    // this file and loaded on its own.
+    games: games.map(g => ({
+      won: g.won, you: g.you, eng: g.eng, beats: g.beats, tackles: g.tackles,
+      date: g.date,
+      detail: g.save ? "full" : "summary",
+      game: g.save || null
+    }))
+  }, "odd-eve-history.json");
+  setMsg(`Exported ${games.length} game${games.length === 1 ? "" : "s"} — ` +
+         `${full} with every beat.`);
 };
 document.getElementById("clrHist").onclick = () => {
   if (!confirm("Clear your whole game history? Saved slots are kept.")) return;

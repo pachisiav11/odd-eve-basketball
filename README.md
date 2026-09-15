@@ -60,7 +60,7 @@ Full write-up in [FINDINGS.md](FINDINGS.md). The short version:
   offense can credibly mix over: **19.5%** below 10 charges, **11.8%** above.
   Neither number moved when the reward curve changed.
 
-## Saving games
+## Saving, replaying and exporting games
 
 The page keeps games as plain JSON, entirely in your browser. Nothing is
 uploaded and there is no server.
@@ -68,48 +68,86 @@ uploaded and there is no server.
 - **Autosave.** The game in progress is written after every beat and restored
   when you reopen the page, so closing the tab mid-game costs nothing.
 - **Three slots.** Save the current position to a named slot and load it back
-  later. A save carries the score, possession, charge count, beat number and
-  the complete beat log, so a loaded game looks exactly as it did.
-- **Export / import.** Any game can be downloaded as a `.json` file and loaded
-  again on another machine or in another browser.
+  later.
+- **Export / import.** Any game downloads as a `.json` file holding the whole
+  game, not a result: every beat, both players' numbers and what each of them
+  meant, the score, possession and charge count before and after it, the
+  equilibrium mixes both sides were playing against, the win probability at
+  each end of it, and the time it was played. About 1.2 KB a beat, so a
+  finished game is 100&ndash;200 KB.
+- **Replay.** Any game with beats in it can be replayed in the page: step
+  through it, scrub the slider, or let it play. The arena, the score, the
+  charge meter and the win probability redraw at every beat, and the engine
+  strategy card shows the mix the engine drew its number from next to the mix
+  you should have been playing. The replay is read-only &mdash; leaving it puts
+  the live game back exactly as it was.
 - **History.** Finished games are archived automatically with a running
-  win&ndash;loss record, and the whole archive exports as one file.
+  win&ndash;loss record. The ten most recent keep every beat and can be
+  replayed from the archive; the rest keep their result row, because browser
+  storage is about 5 MB and a game is 100&ndash;200 KB. The whole archive
+  exports as one file, each game a complete save in its own right.
 
-A save file looks like this:
+One beat out of an exported game:
 
 ```json
 {
-  "format": "odd-eve-basketball/save",
-  "version": 1,
-  "saved": "2026-09-13T07:33:00.000Z",
-  "name": "Comeback vs engine",
-  "label": "You 12–14 Engine · beat 37",
-  "state": {
-    "you": 12, "eng": 14, "holder": "you", "charges": 18,
-    "beat": 37, "over": false, "tackles": 6,
-    "yourPoints": [3, 2, 3, 4], "engPoints": [4, 3, 3, 4],
-    "log": [{ "n": 1, "offSide": "you", "offNum": 4, "defNum": 2,
-              "kind": "ok", "text": "Pass good — +2 charges" }]
+  "n": 44,
+  "t": "2026-09-15T09:18:57.522Z",
+  "sincePrevMs": 4,
+  "offSide": "eng", "defSide": "you",
+  "offNum": 0, "defNum": 1,
+  "text": "DUNK — 4 points",
+  "you": { "role": "defense", "number": 1, "label": "dribble", "equilibrium": 0.062178 },
+  "eng": { "role": "offense", "number": 0, "label": "dunk", "equilibrium": 1,
+           "drawnFrom": { "0": 1 } },
+  "outcome": { "event": "dunk", "points": 4, "scoredBy": "eng", "chargeDelta": -10,
+               "matched": false, "turnover": false, "possessionAfter": "eng" },
+  "before": { "you": 0, "eng": 0, "holder": "eng", "charges": 21, "yourWinProb": 0.263609 },
+  "after":  { "you": 0, "eng": 4, "holder": "eng", "charges": 11, "yourWinProb": 0.263609 },
+  "equilibrium": {
+    "offenseMix": { "0": 1 },
+    "defenseMix": { "1": 0.062178, "2": 0.062178, "3": 0.062178, "4": 0.107411,
+                    "5": 0.107411, "11": 0.107411, "12": 0.203604, "13": 0.28763 },
+    "legalOffense": [1, 2, 3, 4, 5, 6, 7, 0, 11, 12, 13],
+    "tackleRisk": 0, "cashOut": true, "dunkPoints": 4
   }
 }
 ```
 
-Imported files are validated field by field and a file that fails any check is
-rejected rather than half-loaded. If the browser blocks storage &mdash; a private
-window, or a full quota &mdash; the game still plays, it just cannot remember
-anything.
+Every field is documented in [SAVE_FORMAT.md](SAVE_FORMAT.md).
+
+Loading a file does not trust it. The opening toss and the two numbers per
+beat are the whole game; the page replays them through the same transition
+function it uses live, rebuilding the scores, charges, possession and all of
+the analysis from the rules. A file whose moves do not add up to the position
+it claims is rejected rather than half-loaded, and a file written by an older
+version is refused outright.
+
+The same thing can be done from the command line, against a separate
+implementation of the rules:
+
+```bash
+python3 replay.py odd-eve-15-12-beat73.json
+```
+
+`replay.py` rebuilds the game with `rules.py`, prints a beat-by-beat
+transcript, and checks every field in the file &mdash; the summary counters
+included &mdash; against what the rules produce. It reads a single game or a
+whole exported history.
 
 ## Repository layout
 
 | file | purpose |
 |---|---|
 | `index.html` | the playable page, self-contained, no dependencies |
+| `SAVE_FORMAT.md` | field-by-field specification of the save and history files |
 | `rules.py` | transition function and legal action sets |
 | `matgame.py` | closed-form single-beat solver, plus a linear-program reference |
 | `solver.py` | layered backward induction over the full state space |
 | `analyze.py` | thresholds, tackle rates, shot usage, push-or-cash crossover |
 | `simulate.py` | equilibrium self-play for distributional statistics |
 | `build.py` | re-solve and refresh the table embedded in `index.html` |
+| `replay.py` | rebuild an exported game from its JSON and check every field of it |
 | `sweep.py`, `confirm.py`, `gate_test.py` | reward-rule and rule-variant experiments |
 | `exploit_test.py`, `spam_test.py` | checks that the engine really is unexploitable |
 
@@ -136,6 +174,10 @@ solver cannot drift apart. Solved tables are not committed; regenerate them.
   the equilibrium value, so no fixed-number strategy can exploit the engine.
   Measured over 20,000 games each, the best fixed number (always 13) wins 0.06%
   of them and always 5 or always 1 wins none.
+- A game exported from the page replays beat for beat in Python against
+  `rules.py`, and every field the file states &mdash; positions, outcomes, legal
+  moves, the per-side statistics &mdash; is checked against the rules rather
+  than taken on trust.
 - Charge caps of 60 and 100 agree to five decimal places and give the same
   push-or-cash decisions, so the cap does not bind under equilibrium play. It can
   be reached by a player who deliberately stalls, which does not affect the
